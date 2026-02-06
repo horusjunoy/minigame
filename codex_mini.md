@@ -19,6 +19,7 @@ MODO DE ACAO:
 - Você irá executar no terminal os testes, e os testes precisam aparecer no terminal o nome do teste e se passou ou deu falha, apenas isso. 
 - Ao finalizar o teste, aparecer no terminal finalizado. E quando não passar, logar o erro em /logs para você mesmo ajustar.
 - Um problema por commit; mudanca minima e segura.
+- Ao concluir uma Sprint: registrar STATUS + Evidencia (comandos executados) diretamente no bloco da Sprint.
 
 ---
 
