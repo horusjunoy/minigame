@@ -105,6 +105,13 @@ Sprint 1 — “Bootstrap do repo + esqueleto Unity modular”
 
 Objetivo: abrir o projeto e já ter a base “certa” (estrutura + assemblies + contratos), sem feature ainda.
 
+STATUS: CONCLUIDA (2026-02-06)
+Evidencia:
+- check: .\\scripts\\check.ps1
+- test: .\\scripts\\test.ps1
+- build-client: .\\scripts\\build-client.ps1
+- build-server: .\\scripts\\build-server.ps1
+
 Requisito minimo:
 - Fluxo/contrato: Runtime/MinigameContract + estrutura de projeto (sem gameplay).
 - Pronto quando: projeto Unity abre e compila; existe minigame stub com lifecycle logado; README inicial explica como abrir/rodar.
@@ -151,6 +158,13 @@ Comandos de revalidacao:
 Sprint 2 — “Builds + scripts + CI (o acelerador de verdade)”
 
 Objetivo: qualquer pessoa do time roda o projeto do zero com 1–2 comandos, e o CI garante que não quebramos.
+
+STATUS: CONCLUIDA (2026-02-06)
+Evidencia:
+- check: .\\scripts\\check.ps1
+- test: .\\scripts\\test.ps1
+- build-client: .\\scripts\\build-client.ps1
+- build-server: .\\scripts\\build-server.ps1
 
 Requisito minimo:
 - Fluxo/contrato: BuildAndRelease + scripts oficiais + logs (metodo_do_quadrado).
@@ -213,6 +227,11 @@ Comandos de revalidacao:
 Sprint 3 — “Observabilidade mínima + smoke tests do runtime”
 
 Objetivo: ter diagnóstico desde o começo (pra multiplayer isso é ouro) + testes mínimos de conformidade do runtime/minigame.
+
+STATUS: CONCLUIDA (2026-02-06)
+Evidencia:
+- test: .\\scripts\\test.ps1
+- smoke: .\\scripts\\smoke.ps1
 
 Requisito minimo:
 - Fluxo/contrato: Telemetry + MinigameContract + Runtime.
