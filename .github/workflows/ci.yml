@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check
+        shell: pwsh
+        run: .\scripts\check.ps1
+
+      - name: Test
+        shell: pwsh
+        env:
+          UNITY_PATH: ${{ secrets.UNITY_PATH }}
+        run: .\scripts\test.ps1
+
+      - name: Build Client
+        shell: pwsh
+        env:
+          UNITY_PATH: ${{ secrets.UNITY_PATH }}
+        run: .\scripts\build-client.ps1
+
+      - name: Build Server
+        shell: pwsh
+        env:
+          UNITY_PATH: ${{ secrets.UNITY_PATH }}
+        run: .\scripts\build-server.ps1

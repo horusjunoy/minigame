@@ -1,0 +1,23 @@
+{
+  "name": "Game.Runtime.Tests",
+  "references": [
+    "Game.Core",
+    "Game.Runtime",
+    "Game.Minigames.Stub"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "testAssemblies": true,
+  "defineConstraints": [],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

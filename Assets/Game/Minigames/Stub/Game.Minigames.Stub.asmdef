@@ -1,0 +1,16 @@
+{
+  "name": "Game.Minigames.Stub",
+  "references": [
+    "Game.Core",
+    "Game.Runtime"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

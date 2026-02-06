@@ -1,0 +1,32 @@
+# Unity generated
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Bb]uild/
+[Bb]uilds/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+
+# Rider/VS/VSCode
+.idea/
+.vs/
+.vscode/
+*.csproj
+*.sln
+*.user
+*.suo
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Project generated artifacts
+artifacts/
+runs/
+logs/

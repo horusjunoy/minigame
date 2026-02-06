@@ -1,0 +1,21 @@
+{
+  "name": "Game.Editor",
+  "references": [
+    "Game.Core",
+    "Game.Runtime",
+    "Game.Minigames.Stub",
+    "UnityEditor.TestRunner",
+    "UnityEngine.TestRunner"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Game.Tests.PlayMode",
+  "references": [
+    "Game.Core",
+    "Game.Runtime",
+    "Game.Minigames.Stub"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "testAssemblies": true,
+  "versionDefines": [],
+  "noEngineReferences": false
+}
