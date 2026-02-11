@@ -1,6 +1,7 @@
 using System.IO;
 using Game.Core;
 using Game.Runtime;
+using Game.Server;
 using UnityEditor;
 using UnityEngine;
 
@@ -12,6 +13,8 @@ namespace Game.Editor
         {
             try
             {
+                ServerHealthEndpoint.StartForSmoke();
+
                 var manifestPath = Path.Combine(Application.dataPath, "Game/Minigames/Stub/StubMinigame.manifest.json");
                 var manifest = MinigameManifestLoader.LoadFromFile(manifestPath);
                 if (manifest == null)
@@ -38,7 +41,7 @@ namespace Game.Editor
                     "server_smoke");
 
                 var logger = new JsonRuntimeLogger();
-                var context = new StubMinigameContext(telemetry, logger);
+                var context = new StubMinigameContext(telemetry, logger, manifest.settings);
                 context.AddPlayer(new PlayerRef(new PlayerId("p1")));
                 context.AddPlayer(new PlayerRef(new PlayerId("p2")));
 

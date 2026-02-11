@@ -1,11 +1,13 @@
 {
   "name": "Game.Runtime",
   "references": [
-    "Game.Core"
+    "Game.Core",
+    "Unity.Addressables",
+    "Unity.ResourceManager"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
-  "allowUnsafeCode": false,
+  "allowUnsafeCode": true,
   "overrideReferences": false,
   "precompiledReferences": [],
   "autoReferenced": true,

@@ -6,6 +6,7 @@ namespace Game.Runtime
 {
     public interface IMinigameContext
     {
+        Settings Settings { get; }
         TelemetryContext Telemetry { get; }
         IRuntimeLogger Logger { get; }
         IReadOnlyList<PlayerRef> GetPlayers();

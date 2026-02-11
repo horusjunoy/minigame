@@ -14,297 +14,278 @@ PRECEDENCIA:
 Conflito: Sprint > codex_instrucoes.md > docs.
 
 MODO DE ACAO:
-- Se a Sprint nao tiver Requisito minimo + DoD + comandos de revalidacao: primeiro complete a Sprint (patch), nao implemente codigo.
-- Nao iniciar proxima Sprint sem a atual 100% verde.
-- Você irá executar no terminal os testes, e os testes precisam aparecer no terminal o nome do teste e se passou ou deu falha, apenas isso. 
+- Se a Sprint não tiver Requisito mínimo + DoD + comandos de revalidação: primeiro complete a Sprint (patch), não implemente código.
+- Não iniciar próxima Sprint sem a atual 100% verde.
+- Os envie o comando para o usuário executar no terminal os testes, e os testes precisam aparecer no terminal o nome do teste e se passou ou deu falha, apenas isso. 
 - Ao finalizar o teste, aparecer no terminal finalizado. E quando não passar, logar o erro em /logs para você mesmo ajustar.
-- Um problema por commit; mudanca minima e segura.
-- Ao concluir uma Sprint: registrar STATUS + Evidencia (comandos executados) diretamente no bloco da Sprint.
+- Um problema por commit; mudança mínima e segura.
+- Ao concluir integralmente uma Sprint, você DEVE retornar a este arquivo e marcar explicitamente a Sprint como **SPRINT FEITO POR COMPLETO**.
+- A partir desse marcador (**SPRINT FEITO POR COMPLETO**), você ESTÁ AUTORIZADO a continuar as implementações na próxima Sprint definida abaixo, caso exista.
+- Nunca continue implementações acima de uma Sprint não marcada como **SPRINT FEITO POR COMPLETO**.
 
 ---
 
 # SPRINTS
-Épico inaugural (E0): Fundação do Projeto (“Repo Acelerador”)
-git clone https://github.com/seu-org/minigame-platform-template.git
-Objetivo do épico (1 frase)
+Sprint 7 — Rede e Protocolo “de verdade”
 
-Ter um repositório que compila, builda e roda local (client + server headless), com estrutura modular, scripts, CI e logs/telemetria mínimos, para destravar o M1+ sem dor. 
+Objetivo: parar de “torcer” para compatibilidade e garantir budget de rede/CPU com 8–16p.
 
-AssistantContext
+Itens
 
- 
+Handshake com protocol_version e build_version (bloquear mismatch com erro claro no client).
 
-BuildAndRelease
+Consolidar a camada de abstração de rede (INetworkFacade/INetworkTransport) para reduzir acoplamento (e permitir decidir Mirror vs FishNet sem reescrever o core).
 
- 
+Instrumentar bytes/s por player e tick_ms por match (com sampling em debug).
 
-Telemetry
+Ajustes rápidos de replicação para bater budget (quantização simples, reduzir frequência de snapshots por entidade, etc.).
 
-Entregáveis do épico (o que “existe” ao final)
+DoD
 
-Estrutura do repo + módulos + asmdefs (Core/Runtime/Network/Server/Client/Minigames) como base padrão. 
+Cliente incompatível recebe mensagem clara e volta ao hub (sem travar).
 
-RepoStructure
+16 jogadores: tráfego e tick dentro do budget definido.
 
- 
-
-Architecture
-
-Pipeline de build: client build + server headless build (e espaço para content build). 
+Logs e métricas incluem ids de correlação (match/player/minigame). 
 
 BuildAndRelease
 
-Scripts de execução e evidência (logs) no estilo “método do quadrado” (rodar e gerar logs sempre). 
-
-metodo_do_quadrado
-
-Observabilidade mínima: logs estruturados com IDs obrigatórios e eventos mínimos (server/client). 
-
-Telemetry
-
  
-
-ADR-0006-observability
-
-Docs e contratos vivos: docs/ com contexto + arquitetura + contrato do minigame (pra ninguém reinventar a roda). 
-
-AssistantContext
-
- 
-
-Architecture
-
- 
-
-MinigameContract
-
-Fora do escopo (pra não explodir)
-
-Escolha definitiva de networking (Mirror vs FishNet) — aqui a gente só cria a abstração pra não acoplar. 
 
 ADR-0002-networking
 
-Matchmaker “de verdade” (pode ter stub/local só pra smoke test depois). 
-
-MatchmakingSpec
-
-Gameplay / minigame exemplo completo (isso é épico posterior). 
-
-ProductVision
-
-Sprints sugeridas dentro do Épico E0
-
-A ideia é cada sprint terminar com algo rodando + comprovável por comando + log, no padrão DoD do projeto. 
-
-AssistantContext
-
  
-
-metodo_do_quadrado
-
-Sprint 1 — “Bootstrap do repo + esqueleto Unity modular”
-
-Objetivo: abrir o projeto e já ter a base “certa” (estrutura + assemblies + contratos), sem feature ainda.
-
-STATUS: CONCLUIDA (2026-02-06)
-Evidencia:
-- check: .\\scripts\\check.ps1
-- test: .\\scripts\\test.ps1
-- build-client: .\\scripts\\build-client.ps1
-- build-server: .\\scripts\\build-server.ps1
-
-Requisito minimo:
-- Fluxo/contrato: Runtime/MinigameContract + estrutura de projeto (sem gameplay).
-- Pronto quando: projeto Unity abre e compila; existe minigame stub com lifecycle logado; README inicial explica como abrir/rodar.
-- Riscos: setup Unity/URP inconsistente; asmdefs com dependencias ciclicas; contrato do minigame divergente do docs.
-
-Backlog (bem direto):
-
-Criar projeto Unity (URP) e baseline de settings (sem travar em patch). 
-
-ADR-0001-unity-version
-
-Aplicar RepoStructure: pastas Assets/Game/{Core,Runtime,Network,Server,Client,Minigames}. 
-
-RepoStructure
-
-Criar asmdefs por módulo (Core/Runtime/Network/Server/Client + Minigame demo). 
-
-RepoStructure
-
-Colocar skeleton do MinigameContract (interfaces + DTOs básicos) e um “minigame vazio” que só loga lifecycle (OnLoad/OnGameStart/OnTick/OnGameEnd). 
-
-MinigameContract
-
-Padrões de código e lint/format básicos (StyleGuide + .editorconfig). 
-
-StyleGuide
-
-DoD da Sprint 1 (checklist):
-
-Projeto abre e compila sem warnings críticos.
-
-Existe um minigame “stub” que roda local (mesmo sem rede) e imprime lifecycle em log.
-
-Documentação inicial do repo (README mínimo: como abrir/rodar). 
-
-AssistantContext
-
-Comandos de revalidacao:
-1) Abrir/compilar (headless):
-   - Unity -batchmode -quit -projectPath . -logFile logs/unity-compile.log
-2) Executar o minigame stub no editor (manual):
-   - Abrir a cena base e iniciar Play; verificar logs do lifecycle (OnLoad/OnGameStart/OnTick/OnGameEnd).
-
-Sprint 2 — “Builds + scripts + CI (o acelerador de verdade)”
-
-Objetivo: qualquer pessoa do time roda o projeto do zero com 1–2 comandos, e o CI garante que não quebramos.
-
-STATUS: CONCLUIDA (2026-02-06)
-Evidencia:
-- check: .\\scripts\\check.ps1
-- test: .\\scripts\\test.ps1
-- build-client: .\\scripts\\build-client.ps1
-- build-server: .\\scripts\\build-server.ps1
-
-Requisito minimo:
-- Fluxo/contrato: BuildAndRelease + scripts oficiais + logs (metodo_do_quadrado).
-- Pronto quando: scripts `check/test/build-client/build-server` executam e geram logs; CI executa o pipeline.
-- Riscos: builds inconsistentes entre maquinas; logs incompletos; CI faltando artefatos.
-
-Backlog:
-
-Implementar scripts (PowerShell) no padrão do projeto:
-
-scripts/check.ps1 (format/lint/validações)
-
-scripts/test.ps1 (unit tests Core)
-
-scripts/build-client.ps1
-
-scripts/build-server.ps1
-
-tudo gerando log em ./logs/ 
-
-metodo_do_quadrado
-
-Implementar build do server headless + build do client conforme BuildAndRelease. 
-
-BuildAndRelease
-
-Subir CI mínimo: rodar check + testes + build (artefatos). 
-
-BuildAndRelease
-
-Estruturar versionamento mínimo (build_version / protocol_version placeholders). 
-
-BuildAndRelease
-
-DoD da Sprint 2:
-
-Rodar local:
-
-.\scripts\check.ps1
-
-.\scripts\test.ps1
-
-.\scripts\build-client.ps1
-
-.\scripts\build-server.ps1
-e sair com logs salvos. 
-
-metodo_do_quadrado
-
-CI executa esses passos em PR/push e falha se algo quebrar. 
-
-BuildAndRelease
-
-Comandos de revalidacao:
-1) .\scripts\check.ps1
-2) .\scripts\test.ps1
-3) .\scripts\build-client.ps1
-4) .\scripts\build-server.ps1
-
-Sprint 3 — “Observabilidade mínima + smoke tests do runtime”
-
-Objetivo: ter diagnóstico desde o começo (pra multiplayer isso é ouro) + testes mínimos de conformidade do runtime/minigame.
-
-STATUS: CONCLUIDA (2026-02-06)
-Evidencia:
-- test: .\\scripts\\test.ps1
-- smoke: .\\scripts\\smoke.ps1
-
-Requisito minimo:
-- Fluxo/contrato: Telemetry + MinigameContract + Runtime.
-- Pronto quando: logs estruturados com IDs obrigatorios; eventos minimos do server; teste de conformidade do minigame passa.
-- Riscos: logs sem IDs; eventos incompletos; teste flakey ou acoplado demais.
-
-Backlog:
-
-Logs estruturados (JSON) com IDs obrigatórios (match_id, player_id, minigame_id, etc.). 
-
-Telemetry
-
-Emitir eventos mínimos no server: minigame_loaded, minigame_error, match_started, match_ended (mesmo que “match” ainda seja local). 
-
-Telemetry
-
-Marcar budget/limite básico (ex.: tick budget e logar tick_over_budget). 
 
 PerformanceBudgets
 
-Criar teste de conformidade do minigame (carrega, simula ticks, garante que não explode). 
-
-MinigameContract
-
-(Opcional leve) Um “smoke scene” no editor que roda o runtime + minigame stub e encerra.
-
-DoD da Sprint 3:
-
-Se der erro, dá pra responder “por quê” olhando logs (com match_id etc.). 
+ 
 
 Telemetry
 
-Existe um teste automatizado garantindo que o contrato do minigame não quebrou. 
+Sprint 8 — Pipeline de Conteúdo por Mini‑game (Addressables)
+
+Objetivo: permitir evoluir mini‑games e assets sem dor e sem leak de memória ao voltar pro lobby.
+
+Itens
+
+Padronizar content_version por mini‑game e amarrar isso ao manifesto (mesmo que inicialmente “interno”).
+
+Pipeline de build de conteúdo (Addressables) por mini‑game:
+
+gera catálogos por mini‑game
+
+empacota/armazenamento simples (staging/local)
+
+Runtime:
+
+load de cena/prefabs via Addressables
+
+unload/cleanup garantido no OnGameEnd e na volta ao hub
+
+Validação de memória:
+
+“antes/depois” de uma partida (pelo menos logs de pico + GC + contagem de objetos críticos)
+
+DoD
+
+Entrar/jogar/sair 10x seguidas sem crescimento linear de memória.
+
+Conteúdo tem versão rastreável e dá pra saber “qual conteúdo” estava rodando em cada match. 
+
+ADR-0004-addressables
+
+ 
+
+BuildAndRelease
+
+ 
+
+PerformanceBudgets
+
+ 
 
 MinigameContract
 
-Comandos de revalidacao:
-1) .\scripts\test.ps1
-2) .\scripts\smoke.ps1 (ou teste de conformidade do runtime)
+Sprint 9 — Gate de Qualidade para Mini‑games (Conformidade)
 
-Por que esse épico primeiro (e por que ele acelera mesmo)
+Objetivo: evitar que cada mini‑game novo quebre o runtime/rede.
 
-Ele materializa as regras “não negociáveis”: modularização, server-authoritative (sem duplicar regra no client), e base pronta pra runtime plugável. 
+Itens
+
+Implementar uma suíte de conformidade do contrato:
+
+carrega manifesto
+
+roda lifecycle (OnLoad/OnGameStart/OnTick/OnGameEnd)
+
+simula 2–4 players (bots simples)
+
+valida ausência de exceptions e resultado consistente
+
+Rodar isso no CI como gate de PR.
+
+Adicionar “smoke test” de replicação (mínimo): entrar → receber snapshots → encerrar → voltar.
+
+DoD
+
+Todo mini‑game interno precisa passar na suíte para ser mergeado.
+
+Falhas geram log com match_id/minigame_id/build_version suficiente para corrigir. 
+
+MinigameContract
+
+ 
+
+Telemetry
+
+ 
+
+ADR-0006-observability
+
+Sprint 10 — Kit do Criador Interno + 1 Mini‑game Novo
+
+Objetivo: provar que “mini‑game plugável” é real e acelerar criação.
+
+Itens
+
+Template de mini‑game:
+
+manifesto pronto
+
+estrutura de pastas/asmdef
+
+settings via ScriptableObject (tuning) e validações
+
+“Minigame Kit” (runtime helpers):
+
+scoreboard/hud hooks padronizados
+
+eventos comuns (round start/end, countdown, etc.)
+
+Criar 1 mini‑game novo (escopo pequeno, 5–10 min):
+
+ex.: King of the Hill / Coin Rush / Tag
+
+sem mudança no core (ou mudança mínima documentada)
+
+DoD
+
+Novo mini‑game adicionado seguindo contrato e passando no gate do Sprint 9.
+
+Reuso controlado (evitar virar “Minigames/Shared” bagunçado). 
+
+MinigameContract
+
+ 
 
 Architecture
 
  
 
-ADR-0003-authority-model
+AssistantContext
 
-Ele instala desde cedo o “modo multiplayer profissional”: logs + IDs + CI (ADR-0006). 
+Sprint 11 — Infra/Orquestração v2 (Escala simples)
 
-ADR-0006-observability
+Objetivo: sair do “1 sala = 1 host” e ir para “N salas por host”, com proteção de recursos.
 
-Ele reduz o risco do “vamos codar e ver”: com scripts + logs, toda falha vira evidência reproduzível. 
+Itens
 
-metodo_do_quadrado
+Host supervisor (ou camada no matchmaker) para:
 
-Gancho pro próximo épico (só pra já deixar o trilho)
+spawn/kill de processos headless
 
-Depois do E0, o natural é:
+quota de salas por host
 
-E1 (M1): Multiplayer básico (client/server conectando com INetworkFacade sem acoplar) 
+restart policy com backoff
 
-ADR-0002-networking
+Matchmaker:
 
-E2 (M2): Sala/Match + matchmaker (create/join/end + tokens) 
+seleção de host
+
+limpeza de zumbis baseada em heartbeat
+
+timeouts/retries alinhados com client
+
+Rate limit no matchmaker (mínimo), e logs por rota.
+
+DoD
+
+Um host roda N salas (definir N por CPU/memória) e se recupera de crash de uma sala sem matar as outras.
+
+Matchmaker não acumula salas zumbis. 
+
+Infrastructure
+
+ 
 
 MatchmakingSpec
 
-E3 (M3): Runtime v1 (carregar minigame de manifesto, lifecycle completo) 
+ 
+
+ADR-0007-matchmaking-backend
+
+Sprint 12 — LiveOps de Beta (controle + operação)
+
+Objetivo: operar beta sem “deploy a cada ajuste”.
+
+Itens
+
+Feature flags / remote config (mínimo):
+
+rotação de mini‑games (pool do quick play)
+
+parâmetros de match (max players, duration, etc.)
+
+Controles de rollout:
+
+bloquear minigame_id específico
+
+fallback automático para outro mini‑game se crash rate subir
+
+Load test de beta:
+
+X matches simultâneos
+
+métricas consolidadas (crash rate, latency, tick, bytes/s)
+
+Runbook atualizado com “top 10 incidentes” e como diagnosticar.
+
+DoD
+
+Dá pra ativar/desativar mini‑games e ajustar parâmetros sem rebuild do client.
+
+Operação consegue tomar decisão com dashboard/logs (sem reproduzir local). 
+
+Telemetry
+
+ 
+
+BuildAndRelease
+
+ 
+
+Infrastructure
+
+Resultado esperado ao fim do Pacote 2
+
+Conteúdo versionado por mini‑game (base do hot‑load de assets)
+
+Rede com contrato/versionamento real e sob budget
+
+“Gate” que impede regressão ao adicionar mini‑games
+
+Infra capaz de crescer sem mudar arquitetura
+
+Operação de Beta com alavancas (flags/rotação/fallback)
+
+Tudo isso é coerente com a arquitetura de isolamento + lifecycle + versionamento + caminho para UGC. 
+
+Architecture
+
+ 
 
 MinigameContract
 
-Se você topar essa linha, eu chamaria o épico inaugural literalmente de “E0 — Repo Acelerador (Fundação + Build + CI + Observabilidade)” e já colocaria essas 3 sprints como “pacote fechado” pra garantir que o projeto começa com o pé no chão.
+ 
+
+ADR-0005-scripting-ugc

@@ -20,7 +20,7 @@ namespace Game.Tests.Runtime
                 "server_01");
 
             var logger = new JsonRuntimeLogger();
-            var context = new StubMinigameContext(telemetry, logger);
+            var context = new StubMinigameContext(telemetry, logger, new Settings { match_duration_s = 60 });
             var minigame = new StubMinigame();
 
             minigame.OnLoad(context);

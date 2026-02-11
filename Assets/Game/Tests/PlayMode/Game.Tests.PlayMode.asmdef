@@ -3,7 +3,11 @@
   "references": [
     "Game.Core",
     "Game.Runtime",
-    "Game.Minigames.Stub"
+    "Game.Minigames.Stub",
+    "Game.Network",
+    "Game.Network.Transport.Mirror",
+    "Game.Server",
+    "Game.Client"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

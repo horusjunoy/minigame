@@ -1,10 +1,8 @@
 using System.Collections.Generic;
-using System.IO;
 using Game.Core;
 using Game.Minigames.Stub;
 using Game.Runtime;
 using NUnit.Framework;
-using UnityEngine;
 
 namespace Game.Tests.Runtime
 {
@@ -23,24 +21,20 @@ namespace Game.Tests.Runtime
         [Test]
         public void StubMinigame_Lifecycle_Completes_WithoutExceptions()
         {
-            var manifestPath = Path.Combine(Application.dataPath, "Game/Minigames/Stub/StubMinigame.manifest.json");
-            var manifest = MinigameManifestLoader.LoadFromFile(manifestPath);
-            Assert.NotNull(manifest, "Manifest should load for conformance test.");
-            Assert.IsFalse(string.IsNullOrWhiteSpace(manifest.server_entry), "Manifest must define server_entry.");
-
-            var minigame = MinigameFactory.CreateFromEntry(manifest.server_entry);
-            Assert.NotNull(minigame, "MinigameFactory should create the minigame.");
-
             var telemetry = new TelemetryContext(
                 new MatchId("m_test"),
-                new MinigameId(manifest.id ?? "stub_v1"),
+                new MinigameId("stub_v1"),
                 new PlayerId("p_test"),
                 new SessionId("s_test"),
                 BuildInfo.BuildVersion,
                 "server_test");
 
             var logger = new TestLogger();
-            var context = new StubMinigameContext(telemetry, logger);
+            var minigame = MinigameRuntimeLoader.LoadById("stub_v1", "Game/Minigames", telemetry, logger, out var manifest);
+            Assert.NotNull(manifest, "Manifest should load for conformance test.");
+            Assert.NotNull(minigame, "Minigame runtime loader should create the minigame.");
+
+            var context = new StubMinigameContext(telemetry, logger, manifest.settings);
             context.AddPlayer(new PlayerRef(new PlayerId("p1")));
             context.AddPlayer(new PlayerRef(new PlayerId("p2")));
 

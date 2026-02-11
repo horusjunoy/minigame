@@ -29,6 +29,8 @@ Todo log/evento deve (quando aplicável) incluir:
 - `minigame_error`
 - `tick_over_budget` (quando tick > X ms)
 - `network_bytes_per_s` (debug)
+- `purchase_intent` (economia)
+- `reward_granted` (economia)
 
 ---
 

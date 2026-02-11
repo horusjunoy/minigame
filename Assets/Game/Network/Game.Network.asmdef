@@ -1,7 +1,8 @@
 {
   "name": "Game.Network",
   "references": [
-    "Game.Core"
+    "Game.Core",
+    "Game.Runtime"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

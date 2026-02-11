@@ -3,9 +3,10 @@
   "references": [
     "Game.Core",
     "Game.Runtime",
-    "Game.Minigames.Stub",
-    "UnityEditor.TestRunner",
-    "UnityEngine.TestRunner"
+    "Game.Network",
+    "Game.Network.Transport.Mirror",
+    "Game.Server",
+    "Game.Client"
   ],
   "includePlatforms": [
     "Editor"

@@ -134,3 +134,47 @@ function Resolve-UnityPath {
 
     return $null
 }
+
+function New-BuildMetadata {
+    param(
+        [Parameter(Mandatory=$true)][string]$RepoRoot,
+        [Parameter(Mandatory=$true)][string]$Target
+    )
+
+    $commit = Get-GitCommit $RepoRoot
+    $shortCommit = if ($commit -and $commit -ne "unknown" -and $commit.Length -ge 8) { $commit.Substring(0, 8) } else { "unknown" }
+    $utcNow = (Get-Date).ToUniversalTime()
+    $stamp = $utcNow.ToString("yyyyMMdd_HHmmss")
+    $baseVersion = "0.1.0-dev"
+    $versionFile = Join-Path $RepoRoot "build_version.txt"
+    if (Test-Path $versionFile) {
+        $content = (Get-Content $versionFile -ErrorAction SilentlyContinue | Select-Object -First 1)
+        if ($content) {
+            $baseVersion = $content.Trim()
+        }
+    }
+    if ($baseVersion -match "\+") {
+        $version = $baseVersion
+    } else {
+        $version = "$baseVersion+$shortCommit.$stamp"
+    }
+
+    return [ordered]@{
+        version = $version
+        commit = $commit
+        build_utc = $utcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+        target = $Target
+    }
+}
+
+function Write-BuildMetadata {
+    param(
+        [Parameter(Mandatory=$true)][string]$OutputDir,
+        [Parameter(Mandatory=$true)][hashtable]$Metadata
+    )
+
+    Ensure-Dir $OutputDir
+    $path = Join-Path $OutputDir "build_info.json"
+    $Metadata | ConvertTo-Json -Depth 4 | Out-File -FilePath $path -Encoding utf8
+    return $path
+}

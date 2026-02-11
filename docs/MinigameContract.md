@@ -88,6 +88,16 @@ O runtime usa um manifesto (data-driven) para listar assets e entrypoints.
 }
 ```
 
+### Versionamento
+- `schema_version`: versão do schema do manifesto (incrementar quando o formato mudar).
+- `version`: versão do mini-game (semver recomendado).
+ - Loader aceita `id@version` para selecionar uma versao especifica.
+
+### Validação (SDK base)
+Use o script `.\scripts\validate-manifests.ps1` para validar:
+- presença de campos obrigatórios
+- resolução dos entrypoints (`server_entry` / `client_entry`)
+
 ---
 
 ## 6) Teste de conformidade (recomendado)

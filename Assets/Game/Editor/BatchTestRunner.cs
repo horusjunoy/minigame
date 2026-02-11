@@ -14,19 +14,20 @@ namespace Game.Editor
 
         public static void RunEditMode()
         {
-            RunTests(TestMode.EditMode);
+            RunTests(TestMode.EditMode, true);
         }
 
         public static void RunPlayMode()
         {
-            RunTests(TestMode.PlayMode);
+            Debug.Log("BatchTestRunner.RunPlayMode invoked.");
+            RunTests(TestMode.PlayMode, true);
         }
 
-        private static void RunTests(TestMode mode)
+        private static void RunTests(TestMode mode, bool runSynchronously)
         {
             var settings = new ExecutionSettings(new Filter { testMode = mode })
             {
-                runSynchronously = true
+                runSynchronously = runSynchronously
             };
             var runner = ScriptableObject.CreateInstance<TestRunnerApi>();
             runner.RegisterCallbacks(new Callback(GetResultsPath(), mode));

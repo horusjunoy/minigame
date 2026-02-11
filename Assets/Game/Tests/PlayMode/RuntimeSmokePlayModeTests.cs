@@ -36,7 +36,7 @@ namespace Game.Tests.PlayMode
                 BuildInfo.BuildVersion,
                 "server_smoke");
 
-            var context = new StubMinigameContext(telemetry, new TestLogger());
+            var context = new StubMinigameContext(telemetry, new TestLogger(), manifest.settings);
             context.AddPlayer(new PlayerRef(new PlayerId("p1")));
             context.AddPlayer(new PlayerRef(new PlayerId("p2")));
 

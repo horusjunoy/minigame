@@ -11,12 +11,12 @@ namespace Game.Runtime
         public string version;
         public string server_entry;
         public string client_entry;
-        public Addressables addressables;
+        public AddressablesConfig addressables;
         public Settings settings;
     }
 
     [Serializable]
-    public sealed class Addressables
+    public sealed class AddressablesConfig
     {
         public string[] scenes;
         public string[] prefabs;

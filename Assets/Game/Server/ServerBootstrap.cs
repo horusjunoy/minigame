@@ -1,4 +1,3 @@
-using System.IO;
 using Game.Core;
 using Game.Runtime;
 using UnityEngine;
@@ -7,7 +6,8 @@ namespace Game.Server
 {
     public sealed class ServerBootstrap : MonoBehaviour
     {
-        [SerializeField] private string manifestRelativePath = "Game/Minigames/Stub/StubMinigame.manifest.json";
+        [SerializeField] private string minigameId = "stub_v1";
+        [SerializeField] private string catalogRelativePath = "Game/Minigames";
         [SerializeField] private int warmupTicks = 5;
         [SerializeField] private float tickDelta = 0.016f;
         [SerializeField] private bool autoRunOnStart = true;
@@ -24,29 +24,25 @@ namespace Game.Server
 
         public void RunOnce()
         {
-            var manifestPath = Path.Combine(Application.dataPath, manifestRelativePath.Replace("/", Path.DirectorySeparatorChar.ToString()));
-            var manifest = MinigameManifestLoader.LoadFromFile(manifestPath);
-            if (manifest == null)
-            {
-                return;
-            }
-
-            var minigame = MinigameFactory.CreateFromEntry(manifest.server_entry);
-            if (minigame == null)
-            {
-                return;
-            }
-
             var telemetry = new TelemetryContext(
                 new MatchId("m_bootstrap"),
-                new MinigameId(manifest.id ?? "stub_v1"),
+                new MinigameId(minigameId),
                 new PlayerId("p_bootstrap"),
                 new SessionId("s_bootstrap"),
                 BuildInfo.BuildVersion,
                 "server_local");
 
             var logger = new JsonRuntimeLogger();
-            var context = new StubMinigameContext(telemetry, logger);
+            var minigame = MinigameRuntimeLoader.LoadById(minigameId, catalogRelativePath, telemetry, logger, out var manifest);
+            if (minigame == null)
+            {
+                return;
+            }
+
+            var contentLoader = new MinigameContentLoader(logger, telemetry);
+            contentLoader.LoadAllBlocking(manifest);
+
+            var context = new StubMinigameContext(telemetry, logger, manifest.settings);
             context.AddPlayer(new PlayerRef(new PlayerId("p1")));
             context.AddPlayer(new PlayerRef(new PlayerId("p2")));
 
@@ -62,6 +58,7 @@ namespace Game.Server
             }
 
             runner.End(new GameResult(EndGameReason.Completed));
+            contentLoader.UnloadAll();
         }
     }
 }
