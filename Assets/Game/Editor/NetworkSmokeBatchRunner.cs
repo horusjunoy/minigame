@@ -38,6 +38,7 @@ namespace Game.Editor
             SetFloat(sequencer, "clientDelaySeconds", 1f);
             SetBool(server, "autoStart", false);
             SetBool(client, "autoStart", false);
+            SetBool(server, "allowEmptyJoinToken", true);
 
             _startTime = EditorApplication.timeSinceStartup;
             EditorApplication.update += OnEditorUpdate;

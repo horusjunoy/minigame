@@ -33,6 +33,7 @@ namespace Game.Tests.PlayMode
             SetPrivateField(server, "facadeBehaviour", facade);
             SetPrivateField(client, "facadeBehaviour", facade);
             SetPrivateField(probe, "facadeBehaviour", facade);
+            SetPrivateField(server, "allowEmptyJoinToken", true);
 
             const float timeoutSeconds = 10f;
             var start = Time.realtimeSinceStartup;

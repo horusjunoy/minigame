@@ -27,7 +27,7 @@ Ter um pipeline previsível para:
 - Unit tests (Core)
 - Build client
 - Build server headless
-- (Opcional) build Addressables
+- Build content (Addressables catalog): `.\scripts\build-content.ps1`
 
 ---
 

@@ -34,6 +34,36 @@ namespace Game.Network
         }
     }
 
+    public struct ServerErrorMessage
+    {
+        public const int Version = 1;
+        public int v;
+        public string code;
+        public string detail;
+        public string server_build_version;
+        public string client_build_version;
+        public int server_protocol_version;
+        public int client_protocol_version;
+
+        public ServerErrorMessage(
+            string code,
+            string detail,
+            string serverBuildVersion,
+            string clientBuildVersion,
+            int serverProtocolVersion,
+            int clientProtocolVersion,
+            int version = Version)
+        {
+            v = version;
+            this.code = code ?? string.Empty;
+            this.detail = detail ?? string.Empty;
+            server_build_version = serverBuildVersion ?? string.Empty;
+            client_build_version = clientBuildVersion ?? string.Empty;
+            server_protocol_version = serverProtocolVersion;
+            client_protocol_version = clientProtocolVersion;
+        }
+    }
+
     public struct PlayerJoinedMessage
     {
         public const int Version = 1;

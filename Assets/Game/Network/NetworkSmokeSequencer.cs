@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Reflection;
+using Game.Core;
 using UnityEngine;
 
 namespace Game.Network
@@ -101,7 +102,7 @@ namespace Game.Network
             }
 
             var sessionId = Guid.NewGuid().ToString("N");
-            var helloMessage = Activator.CreateInstance(helloType, sessionId, "smoke", 1);
+            var helloMessage = Activator.CreateInstance(helloType, sessionId, BuildInfo.BuildVersion, string.Empty, HelloMessage.Version);
             var sendHello = client.GetType().GetMethod("SendHello", BindingFlags.Instance | BindingFlags.Public);
             if (sendHello != null)
             {

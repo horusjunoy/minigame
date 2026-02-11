@@ -6,6 +6,7 @@ namespace Game.Network
     {
         INetworkServer Server { get; }
         INetworkClient Client { get; }
+        INetworkTransport Transport { get; }
     }
 
     public interface INetworkServer
@@ -17,6 +18,7 @@ namespace Game.Network
         void StartServer(NetworkEndpoint endpoint);
         void StopServer();
         void Disconnect(NetworkPeerId peerId, string reason);
+        void SendError(NetworkPeerId peerId, ServerErrorMessage message);
 
         void SendWelcome(NetworkPeerId peerId, WelcomeMessage message);
         void BroadcastPlayerJoined(PlayerJoinedMessage message);
@@ -29,6 +31,7 @@ namespace Game.Network
         event Action Connected;
         event Action Disconnected;
         event Action<WelcomeMessage> WelcomeReceived;
+        event Action<ServerErrorMessage> ErrorReceived;
         event Action<PongMessage> PongReceived;
         event Action<SnapshotV1> SnapshotReceived;
 
@@ -38,5 +41,11 @@ namespace Game.Network
         void SendHello(HelloMessage message);
         void SendPing(PingMessage message);
         void SendMoveCommand(MoveCommand command);
+    }
+
+    public interface INetworkTransport
+    {
+        string Name { get; }
+        bool IsAvailable { get; }
     }
 }

@@ -3,6 +3,7 @@
   "id": "stub_v1",
   "display_name": "Stub",
   "version": "0.1.0",
+  "content_version": "0.1.0",
   "server_entry": "Game.Minigames.Stub.StubMinigame, Game.Minigames.Stub",
   "client_entry": "",
   "addressables": {

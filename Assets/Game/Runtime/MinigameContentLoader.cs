@@ -22,9 +22,10 @@ namespace Game.Runtime
 
         public void LoadAllBlocking(MinigameManifest manifest)
         {
+            MinigameMemoryProfiler.LogSnapshot(_logger, _telemetry, "before_load");
             if (manifest?.addressables == null)
             {
-                LogLoaded(0, 0);
+                LogLoaded(0, 0, manifest != null ? manifest.content_version : string.Empty);
                 return;
             }
 
@@ -63,11 +64,13 @@ namespace Game.Runtime
                 }
             }
 
-            LogLoaded(sceneCount, prefabCount);
+            LogLoaded(sceneCount, prefabCount, manifest.content_version);
+            MinigameMemoryProfiler.LogSnapshot(_logger, _telemetry, "after_load");
         }
 
         public void UnloadAll()
         {
+            MinigameMemoryProfiler.LogSnapshot(_logger, _telemetry, "before_unload");
             for (var i = 0; i < _sceneHandles.Count; i++)
             {
                 if (_sceneHandles[i].IsValid())
@@ -86,12 +89,21 @@ namespace Game.Runtime
 
             _sceneHandles.Clear();
             _assetHandles.Clear();
+            System.GC.Collect();
+            System.GC.WaitForPendingFinalizers();
+            MinigameMemoryProfiler.LogSnapshot(_logger, _telemetry, "after_unload");
             _logger.Log(LogLevel.Info, "minigame_content_unloaded", "Minigame content unloaded", null, _telemetry);
         }
 
-        private void LogLoaded(int scenes, int prefabs)
+        private void LogLoaded(int scenes, int prefabs, string contentVersion)
         {
-            _logger.Log(LogLevel.Info, "minigame_content_loaded", "Minigame content loaded", $"scenes={scenes},prefabs={prefabs}", _telemetry);
+            var fields = new Dictionary<string, object>
+            {
+                ["scenes"] = scenes,
+                ["prefabs"] = prefabs,
+                ["content_version"] = contentVersion ?? string.Empty
+            };
+            _logger.Log(LogLevel.Info, "minigame_content_loaded", "Minigame content loaded", fields, _telemetry);
         }
     }
 }

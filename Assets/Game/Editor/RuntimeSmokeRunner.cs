@@ -1,4 +1,5 @@
 using System.IO;
+using System.Threading;
 using Game.Core;
 using Game.Runtime;
 using Game.Server;
@@ -45,6 +46,9 @@ namespace Game.Editor
                 context.AddPlayer(new PlayerRef(new PlayerId("p1")));
                 context.AddPlayer(new PlayerRef(new PlayerId("p2")));
 
+                var contentLoader = new MinigameContentLoader(logger, telemetry);
+                contentLoader.LoadAllBlocking(manifest);
+
                 var runner = new MinigameRunner(minigame, context);
 
                 runner.Load();
@@ -52,8 +56,10 @@ namespace Game.Editor
                 runner.Tick(0.016f);
                 runner.Tick(0.016f);
                 runner.End(new GameResult(EndGameReason.Completed));
+                contentLoader.UnloadAll();
 
                 Debug.Log("Smoke: runtime completed.");
+                Thread.Sleep(1500);
                 EditorApplication.Exit(0);
             }
             catch (System.Exception ex)

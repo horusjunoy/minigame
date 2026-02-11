@@ -52,6 +52,11 @@ namespace Game.Client
             return SendJson("POST", "/tokens/verify", payload, callback);
         }
 
+        public IEnumerator GetConfig(Action<Result<RemoteConfigResponse>> callback)
+        {
+            return SendJson("GET", "/config", null, callback);
+        }
+
         private IEnumerator SendJson<T>(string method, string path, object payload, Action<Result<T>> callback, bool isArrayResponse = false)
         {
             var url = baseUrl.TrimEnd('/') + path;
@@ -180,6 +185,16 @@ namespace Game.Client
         public sealed class MatchListResponse
         {
             public MatchListEntry[] items;
+        }
+
+        [Serializable]
+        public sealed class RemoteConfigResponse
+        {
+            public string[] minigame_pool;
+            public string[] blocked_minigames;
+            public string fallback_minigame_id;
+            public int max_players;
+            public int match_duration_s;
         }
 
         [Serializable]

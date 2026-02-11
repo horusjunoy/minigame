@@ -9,6 +9,7 @@ namespace Game.Runtime
         public string id;
         public string display_name;
         public string version;
+        public string content_version;
         public string server_entry;
         public string client_entry;
         public AddressablesConfig addressables;

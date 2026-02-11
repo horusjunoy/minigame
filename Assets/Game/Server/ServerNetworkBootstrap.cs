@@ -37,6 +37,10 @@ namespace Game.Server
         private float _nextSnapshotTime;
         private float _nextBytesLogTime;
         private int _bytesThisSecond;
+        private float _nextTickLogTime;
+        private int _tickSamples;
+        private double _tickAccumMs;
+        private double _tickMaxMs;
         private bool _serverRunning;
         private readonly Dictionary<string, int> _playerIndex = new Dictionary<string, int>();
         private MatchmakerTokenVerifier _tokenVerifier;
@@ -73,6 +77,10 @@ namespace Game.Server
             _nextSnapshotTime = Time.realtimeSinceStartup;
             _nextBytesLogTime = Time.realtimeSinceStartup + 1f;
             _bytesThisSecond = 0;
+            _nextTickLogTime = Time.realtimeSinceStartup + 1f;
+            _tickSamples = 0;
+            _tickAccumMs = 0;
+            _tickMaxMs = 0;
         }
 
         public void StopServer()
@@ -143,6 +151,18 @@ namespace Game.Server
             var sessionId = SanitizePayload(message.session_id, 64, peerId, "session_id");
             var clientVersion = SanitizePayload(message.client_version, 32, peerId, "client_version");
             var joinToken = SanitizePayload(message.join_token, joinTokenMaxLength, peerId, "join_token");
+
+            if (message.v != HelloMessage.Version)
+            {
+                RejectHandshake(peerId, sessionId, "protocol_mismatch", $"expected={HelloMessage.Version}, got={message.v}", clientVersion, message.v);
+                return;
+            }
+
+            if (!string.Equals(clientVersion, BuildInfo.BuildVersion, StringComparison.Ordinal))
+            {
+                RejectHandshake(peerId, sessionId, "build_mismatch", "client_build_mismatch", clientVersion, message.v);
+                return;
+            }
 
             if (!TryAcceptJoinToken(peerId, sessionId, joinToken, out var tokenPayload))
             {
@@ -279,8 +299,9 @@ namespace Game.Server
                 return;
             }
 
-            var now = Time.realtimeSinceStartup;
-            const float snapshotInterval = 1f / 15f;
+            var tickStart = Time.realtimeSinceStartup;
+            var now = tickStart;
+            var snapshotInterval = _playerIndex.Count > 8 ? (1f / 10f) : (1f / 15f);
             if (now >= _nextSnapshotTime)
             {
                 _nextSnapshotTime = now + snapshotInterval;
@@ -292,8 +313,28 @@ namespace Game.Server
             if (now >= _nextBytesLogTime)
             {
                 _nextBytesLogTime = now + 1f;
-                LogNetworkBytesPerSecond(_bytesThisSecond);
+                LogNetworkBytesPerSecond(_bytesThisSecond, _playerIndex.Count);
                 _bytesThisSecond = 0;
+            }
+
+            if (Debug.isDebugBuild)
+            {
+                var tickMs = Math.Max(0.0, (Time.realtimeSinceStartup - tickStart) * 1000.0);
+                _tickSamples += 1;
+                _tickAccumMs += tickMs;
+                if (tickMs > _tickMaxMs)
+                {
+                    _tickMaxMs = tickMs;
+                }
+
+                if (now >= _nextTickLogTime)
+                {
+                    _nextTickLogTime = now + 1f;
+                    LogTickMetrics(_tickSamples, _tickAccumMs, _tickMaxMs);
+                    _tickSamples = 0;
+                    _tickAccumMs = 0;
+                    _tickMaxMs = 0;
+                }
             }
         }
 
@@ -310,27 +351,68 @@ namespace Game.Server
                 }
 
                 var rot = Quaternion.identity;
-                entities[i++] = new SnapshotEntityV1(entry.Key, position.x, position.y, position.z, rot.x, rot.y, rot.z, rot.w);
+                var quantizedX = Quantize(position.x, 0.05f);
+                var quantizedY = Quantize(position.y, 0.05f);
+                var quantizedZ = Quantize(position.z, 0.05f);
+                entities[i++] = new SnapshotEntityV1(entry.Key, quantizedX, quantizedY, quantizedZ, rot.x, rot.y, rot.z, rot.w);
             }
 
             return new SnapshotV1(serverTimeMs, entities);
         }
 
-        private void LogNetworkBytesPerSecond(int bytesPerSecond)
+        private static float Quantize(float value, float step)
+        {
+            if (step <= 0f)
+            {
+                return value;
+            }
+
+            return Mathf.Round(value / step) * step;
+        }
+
+        private void LogNetworkBytesPerSecond(int bytesPerSecond, int playerCount)
         {
             var telemetry = new TelemetryContext(
                 new MatchId(matchId),
                 new MinigameId(minigameId),
-                new PlayerId(""),
+                new PlayerId("all"),
                 new SessionId(""),
                 BuildInfo.BuildVersion,
                 serverInstanceId);
 
+            var safePlayers = Mathf.Max(1, playerCount);
             var fields = new System.Collections.Generic.Dictionary<string, object>
             {
-                ["bytes_per_s"] = bytesPerSecond
+                ["bytes_per_s"] = bytesPerSecond,
+                ["bytes_per_s_per_player"] = Math.Round(bytesPerSecond / (double)safePlayers, 2),
+                ["players"] = playerCount
             };
             _logger.Log(LogLevel.Debug, "network_bytes_per_s", "Network bytes per second", fields, telemetry);
+        }
+
+        private void LogTickMetrics(int samples, double accumulatedMs, double maxMs)
+        {
+            if (samples <= 0)
+            {
+                return;
+            }
+
+            var telemetry = new TelemetryContext(
+                new MatchId(matchId),
+                new MinigameId(minigameId),
+                new PlayerId("all"),
+                new SessionId(""),
+                BuildInfo.BuildVersion,
+                serverInstanceId);
+
+            var avgMs = accumulatedMs / samples;
+            var fields = new System.Collections.Generic.Dictionary<string, object>
+            {
+                ["tick_ms_avg"] = Math.Round(avgMs, 3),
+                ["tick_ms_max"] = Math.Round(maxMs, 3),
+                ["samples"] = samples
+            };
+            _logger.Log(LogLevel.Debug, "tick_ms", "Tick duration", fields, telemetry);
         }
 
         private bool ValidateCommandRate(string peerId, float now)
@@ -474,6 +556,37 @@ namespace Game.Server
 
             _usedJoinTokens.Add(joinToken);
             return true;
+        }
+
+        private void RejectHandshake(NetworkPeerId peerId, string sessionId, string code, string detail, string clientBuildVersion, int clientProtocolVersion)
+        {
+            var telemetry = new TelemetryContext(
+                new MatchId(matchId),
+                new MinigameId(minigameId),
+                new PlayerId(peerId.Value),
+                new SessionId(sessionId ?? string.Empty),
+                BuildInfo.BuildVersion,
+                serverInstanceId);
+
+            var fields = new System.Collections.Generic.Dictionary<string, object>
+            {
+                ["code"] = code,
+                ["detail"] = detail,
+                ["server_build_version"] = BuildInfo.BuildVersion,
+                ["client_build_version"] = clientBuildVersion,
+                ["server_protocol_version"] = HelloMessage.Version,
+                ["client_protocol_version"] = clientProtocolVersion
+            };
+            _logger.Log(LogLevel.Warn, "handshake_rejected", "Handshake rejected", fields, telemetry);
+
+            _server.SendError(peerId, new ServerErrorMessage(
+                code,
+                detail,
+                BuildInfo.BuildVersion,
+                clientBuildVersion,
+                HelloMessage.Version,
+                clientProtocolVersion));
+            _server.Disconnect(peerId, code);
         }
 
         private void RejectJoinToken(NetworkPeerId peerId, string sessionId, MatchmakerTokenVerifier.TokenPayload payload, string reason)

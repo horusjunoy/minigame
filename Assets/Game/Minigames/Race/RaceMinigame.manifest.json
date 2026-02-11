@@ -3,6 +3,7 @@
   "id": "race_v1",
   "display_name": "Race",
   "version": "0.1.0",
+  "content_version": "0.1.0",
   "server_entry": "Game.Minigames.Race.RaceMinigame, Game.Minigames.Race",
   "client_entry": "",
   "addressables": {

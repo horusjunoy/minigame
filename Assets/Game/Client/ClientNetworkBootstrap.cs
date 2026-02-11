@@ -30,6 +30,7 @@ namespace Game.Client
         public event Action Connected;
         public event Action Disconnected;
         public event Action<WelcomeMessage> WelcomeReceived;
+        public event Action<ServerErrorMessage> ErrorReceived;
 
         private void Awake()
         {
@@ -116,6 +117,7 @@ namespace Game.Client
             _client.Connected += OnConnected;
             _client.Disconnected += OnDisconnected;
             _client.WelcomeReceived += OnWelcomeReceived;
+            _client.ErrorReceived += OnErrorReceived;
             _client.SnapshotReceived += OnSnapshotReceived;
             _client.PongReceived += OnPongReceived;
             return true;
@@ -213,6 +215,30 @@ namespace Game.Client
 
             _logger.Log(LogLevel.Info, "welcome_received", "Welcome received", null, telemetry);
             WelcomeReceived?.Invoke(message);
+        }
+
+        private void OnErrorReceived(ServerErrorMessage message)
+        {
+            _disconnectReason = string.IsNullOrWhiteSpace(message.code) ? "server_error" : message.code;
+            var telemetry = new TelemetryContext(
+                new MatchId(""),
+                new MinigameId(""),
+                new PlayerId(""),
+                new SessionId(sessionId ?? string.Empty),
+                BuildInfo.BuildVersion,
+                "client_local");
+
+            var fields = new System.Collections.Generic.Dictionary<string, object>
+            {
+                ["code"] = message.code,
+                ["detail"] = message.detail,
+                ["server_build_version"] = message.server_build_version,
+                ["client_build_version"] = message.client_build_version,
+                ["server_protocol_version"] = message.server_protocol_version,
+                ["client_protocol_version"] = message.client_protocol_version
+            };
+            _logger.Log(LogLevel.Warn, "server_error", "Server error", fields, telemetry);
+            ErrorReceived?.Invoke(message);
         }
 
         private void OnSnapshotReceived(SnapshotV1 snapshot)

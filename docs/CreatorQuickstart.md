@@ -12,6 +12,7 @@
   "id": "minigame_exemplo_v1",
   "display_name": "Exemplo",
   "version": "0.1.0",
+  "content_version": "0.1.0",
   "server_entry": "Game.Minigames.Exemplo.ExemploMinigame, Game.Minigames.Exemplo",
   "client_entry": "",
   "addressables": {
@@ -24,6 +25,11 @@
   }
 }
 ```
+
+## 2.1) Tuning (ScriptableObject)
+- Opcional: crie um `<Nome>Tuning` com `[CreateAssetMenu]`.
+- Para carregar em runtime, salve o asset em `Resources/Minigames/<Nome>/<Nome>Tuning`.
+- O template `.\scripts\new-minigame.ps1` já inclui a classe básica com validação.
 
 ## 3) Validacao
 Rode:

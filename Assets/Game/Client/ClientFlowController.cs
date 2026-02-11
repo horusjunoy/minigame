@@ -38,6 +38,7 @@ namespace Game.Client
         [SerializeField] private float reconnectWindowSeconds = 6f;
         [SerializeField] private float reconnectDelaySeconds = 1f;
         [SerializeField] private int reconnectMaxAttempts = 1;
+        [SerializeField] private float configRefreshSeconds = 30f;
 
         private FlowState _state = FlowState.Hub;
         private string _errorMessage;
@@ -59,6 +60,11 @@ namespace Game.Client
         private int _reconnectAttempts;
         private bool _pendingReconnect;
         private JsonRuntimeLogger _logger;
+        private string[] _remoteMinigamePool;
+        private string[] _remoteBlockedMinigames;
+        private string _remoteFallbackMinigame;
+        private int _remoteMaxPlayers;
+        private float _lastConfigFetchAt;
 
         private void Awake()
         {
@@ -68,6 +74,7 @@ namespace Game.Client
                 networkBootstrap.Connected += HandleConnected;
                 networkBootstrap.Disconnected += HandleDisconnected;
                 networkBootstrap.WelcomeReceived += HandleWelcome;
+                networkBootstrap.ErrorReceived += HandleNetworkError;
             }
         }
 
@@ -78,6 +85,7 @@ namespace Game.Client
                 networkBootstrap.Connected -= HandleConnected;
                 networkBootstrap.Disconnected -= HandleDisconnected;
                 networkBootstrap.WelcomeReceived -= HandleWelcome;
+                networkBootstrap.ErrorReceived -= HandleNetworkError;
             }
         }
 
@@ -88,6 +96,7 @@ namespace Game.Client
                 networkBootstrap.Connected -= HandleConnected;
                 networkBootstrap.Disconnected -= HandleDisconnected;
                 networkBootstrap.WelcomeReceived -= HandleWelcome;
+                networkBootstrap.ErrorReceived -= HandleNetworkError;
             }
 
             networkBootstrap = bootstrap;
@@ -98,6 +107,7 @@ namespace Game.Client
                 networkBootstrap.Connected += HandleConnected;
                 networkBootstrap.Disconnected += HandleDisconnected;
                 networkBootstrap.WelcomeReceived += HandleWelcome;
+                networkBootstrap.ErrorReceived += HandleNetworkError;
             }
         }
 
@@ -394,6 +404,13 @@ namespace Game.Client
             }
         }
 
+        private void HandleNetworkError(ServerErrorMessage message)
+        {
+            _ignoreDisconnect = true;
+            var detail = BuildNetworkErrorDetail(message);
+            SetError(detail);
+        }
+
         private void EnterInGame()
         {
             _state = FlowState.InGame;
@@ -480,13 +497,17 @@ namespace Game.Client
 
         private IEnumerator CreateMatchWithRetry()
         {
+            yield return RefreshRemoteConfig();
             var attempt = 0;
             while (attempt <= matchmakingRetryCount)
             {
                 MatchmakerClient.Result<MatchmakerClient.CreateMatchResponse> result = null;
-                yield return matchmakerClient.CreateMatch(minigameId, maxPlayers, r => result = r);
+                var selectedMinigame = ResolveMinigameId();
+                var selectedMaxPlayers = ResolveMaxPlayers();
+                yield return matchmakerClient.CreateMatch(selectedMinigame, selectedMaxPlayers, r => result = r);
                 if (result != null && result.Success && result.Payload != null)
                 {
+                    minigameId = selectedMinigame;
                     ApplyMatchCreated(result.Payload);
                     yield return JoinMatchWithRetry();
                     yield break;
@@ -689,6 +710,14 @@ namespace Game.Client
             {
                 return "Erro interno de rede.";
             }
+            if (code.StartsWith("protocol_mismatch", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Versao do protocolo incompatível. Atualize o client.";
+            }
+            if (code.StartsWith("build_mismatch", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Versao do client incompatível. Atualize o client.";
+            }
 
             return code;
         }
@@ -703,6 +732,31 @@ namespace Game.Client
             return "Conectando ao servidor";
         }
 
+        private static string BuildNetworkErrorDetail(ServerErrorMessage message)
+        {
+            if (message.code == null)
+            {
+                return "server_error";
+            }
+
+            if (message.code.StartsWith("protocol_mismatch", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"protocol_mismatch: server={message.server_protocol_version} client={message.client_protocol_version}";
+            }
+
+            if (message.code.StartsWith("build_mismatch", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"build_mismatch: server={message.server_build_version} client={message.client_build_version}";
+            }
+
+            if (!string.IsNullOrWhiteSpace(message.detail))
+            {
+                return $"{message.code}: {message.detail}";
+            }
+
+            return message.code;
+        }
+
         private void LogPurchaseIntent(string sku, string source)
         {
             var telemetry = new TelemetryContext(
@@ -714,6 +768,73 @@ namespace Game.Client
                 "client_local");
 
             EconomyEventPublisher.LogPurchaseIntent(_logger, telemetry, sku, source);
+        }
+
+        private IEnumerator RefreshRemoteConfig()
+        {
+            if (matchmakerClient == null)
+            {
+                yield break;
+            }
+
+            if (configRefreshSeconds > 0f && Time.realtimeSinceStartup - _lastConfigFetchAt < configRefreshSeconds)
+            {
+                yield break;
+            }
+
+            _lastConfigFetchAt = Time.realtimeSinceStartup;
+            MatchmakerClient.Result<MatchmakerClient.RemoteConfigResponse> result = null;
+            yield return matchmakerClient.GetConfig(r => result = r);
+            if (result == null || !result.Success || result.Payload == null)
+            {
+                yield break;
+            }
+
+            ApplyRemoteConfig(result.Payload);
+        }
+
+        private void ApplyRemoteConfig(MatchmakerClient.RemoteConfigResponse config)
+        {
+            _remoteMinigamePool = config.minigame_pool;
+            _remoteBlockedMinigames = config.blocked_minigames;
+            _remoteFallbackMinigame = config.fallback_minigame_id;
+            _remoteMaxPlayers = config.max_players;
+            if (config.match_duration_s > 0)
+            {
+                matchDurationSeconds = config.match_duration_s;
+            }
+        }
+
+        private string ResolveMinigameId()
+        {
+            if (_remoteMinigamePool != null && _remoteMinigamePool.Length > 0)
+            {
+                var candidate = _remoteMinigamePool[UnityEngine.Random.Range(0, _remoteMinigamePool.Length)];
+                if (_remoteBlockedMinigames != null)
+                {
+                    for (var i = 0; i < _remoteBlockedMinigames.Length; i++)
+                    {
+                        if (string.Equals(candidate, _remoteBlockedMinigames[i], StringComparison.OrdinalIgnoreCase))
+                        {
+                            return string.IsNullOrWhiteSpace(_remoteFallbackMinigame) ? minigameId : _remoteFallbackMinigame;
+                        }
+                    }
+                }
+
+                return candidate;
+            }
+
+            return minigameId;
+        }
+
+        private int ResolveMaxPlayers()
+        {
+            if (_remoteMaxPlayers > 0)
+            {
+                return _remoteMaxPlayers;
+            }
+
+            return maxPlayers;
         }
 
         private readonly struct ScoreEntry

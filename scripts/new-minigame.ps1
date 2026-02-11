@@ -48,6 +48,7 @@ $asmdefName = "Game.Minigames.$pascal"
 $asmdefPath = Join-Path $folder "Game.Minigames.$pascal.asmdef"
 $manifestPath = Join-Path $folder "$className.manifest.json"
 $classPath = Join-Path $folder "$className.cs"
+$tuningPath = Join-Path $folder "${pascal}Tuning.cs"
 
 $asmdefContent = @"
 {
@@ -74,6 +75,7 @@ $manifestContent = @"
   \"id\": \"$minigameId\",
   \"display_name\": \"$display\",
   \"version\": \"$Version\",
+  \"content_version\": \"$Version\",
   \"server_entry\": \"$namespace.$className, $asmdefName\",
   \"client_entry\": \"\",
   \"addressables\": {
@@ -90,21 +92,30 @@ $manifestContent = @"
 $classContent = @"
 using Game.Core;
 using Game.Runtime;
+using UnityEngine;
 
 namespace $namespace
 {
     public sealed class $className : IMinigame
     {
         private IMinigameContext _context;
+        private ${pascal}Tuning _tuning;
 
         public void OnLoad(IMinigameContext context)
         {
             _context = context;
+            _tuning = Resources.Load<${pascal}Tuning>("Minigames/$pascal/${pascal}Tuning");
+            if (_tuning == null)
+            {
+                _tuning = ScriptableObject.CreateInstance<${pascal}Tuning>();
+            }
+            _tuning.Validate();
             _context.Logger.Log(LogLevel.Info, \"minigame_loaded\", \"$pascal minigame loaded\", null, _context.Telemetry);
         }
 
         public void OnGameStart()
         {
+            MinigameKit.BroadcastRoundStart(_context, 1);
             _context.Logger.Log(LogLevel.Info, \"match_started\", \"$pascal match started\", null, _context.Telemetry);
         }
 
@@ -124,7 +135,33 @@ namespace $namespace
 
         public void OnGameEnd(GameResult result)
         {
+            MinigameKit.BroadcastRoundEnd(_context, 1, result.Reason);
             _context.Logger.Log(LogLevel.Info, \"match_ended\", $"$pascal match ended: {result.Reason}", null, _context.Telemetry);
+        }
+    }
+}
+"@
+
+$tuningContent = @"
+using UnityEngine;
+
+namespace $namespace
+{
+    [CreateAssetMenu(menuName = \"Minigames/$pascal/Tuning\", fileName = \"${pascal}Tuning\")]
+    public sealed class ${pascal}Tuning : ScriptableObject
+    {
+        public int scoreToWinOverride;
+        public int matchDurationSecondsOverride;
+
+        public void Validate()
+        {
+            scoreToWinOverride = Mathf.Max(0, scoreToWinOverride);
+            matchDurationSecondsOverride = Mathf.Max(0, matchDurationSecondsOverride);
+        }
+
+        private void OnValidate()
+        {
+            Validate();
         }
     }
 }
@@ -133,8 +170,10 @@ namespace $namespace
 $asmdefContent | Set-Content -Path $asmdefPath -Encoding utf8
 $manifestContent | Set-Content -Path $manifestPath -Encoding utf8
 $classContent | Set-Content -Path $classPath -Encoding utf8
+$tuningContent | Set-Content -Path $tuningPath -Encoding utf8
 
 Write-Host "Created minigame at $folder"
 Write-Host "- $asmdefPath"
 Write-Host "- $manifestPath"
 Write-Host "- $classPath"
+Write-Host "- $tuningPath"

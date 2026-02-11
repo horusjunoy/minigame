@@ -14,6 +14,14 @@ Padronizar execução do Matchmaker e Server headless em VM, com health endpoint
 - `MATCHMAKER_PORT`: porta do serviço
 - `MATCHMAKER_SECRET`: segredo HMAC
 - `MATCHMAKER_DEFAULT_ENDPOINT`: endpoint do server (ex: `127.0.0.1:7770`)
+- `MATCHMAKER_RATE_LIMIT_MAX`: limite de requests por janela
+- `MATCHMAKER_RATE_LIMIT_WINDOW_MS`: janela do rate limit (ms)
+- `MATCHMAKER_HOST_SUPERVISOR`: `1` para habilitar supervisor local
+- `MATCHMAKER_HOST_BASE_PORT`: porta base para salas locais
+- `MATCHMAKER_HOST_MAX_ROOMS`: máximo de salas por host
+- `MATCHMAKER_SERVER_CMD`: comando para spawn do server headless
+- `MATCHMAKER_SERVER_ARGS`: args com `{port}` e `{match_id}`
+- `MATCHMAKER_CONFIG_PATH`: caminho do config remoto
 - `SERVER_HEALTH_ENABLE`: `1` para habilitar health endpoint do server
 - `SERVER_HEALTH_PORT`: porta do health endpoint (default 18080)
 
@@ -54,3 +62,15 @@ nssm install MinigameServer "C:\Program Files\Unity\Hub\Editor\2022.3.62f3\Edito
 ## Observabilidade
 - Logs em `logs/` (matchmaker, soak, testes).
 - Server health endpoint responde JSON com `status`, `uptime_s`, `build_version`.
+
+## Top 10 incidentes (diagnóstico rápido)
+1. `matchmaker` responde 5xx: verificar `logs/matchmaker_*.log` e `MATCHMAKER_*` env.
+2. `allocation_failed`: checar `MATCHMAKER_MAX_MATCHES` e capacidade do pool.
+3. `match_zombie`: confirmar heartbeats chegando em `/matches/:id/heartbeat`.
+4. `rate_limited`: ajustar `MATCHMAKER_RATE_LIMIT_MAX` e validar IPs.
+5. `token_invalid`: conferir `MATCHMAKER_SECRET` entre matchmaker e server.
+6. `server_health` down: validar `SERVER_HEALTH_ENABLE=1` e porta livre.
+7. `protocol_mismatch`/`build_mismatch`: garantir build_version igual no client/server.
+8. `host_room_crashed`: revisar `MATCHMAKER_SERVER_CMD` e logs `host_<match>.log`.
+9. `config` inválido: checar `services/matchmaker/remote_config.json`.
+10. `port_in_use`: ajustar `MATCHMAKER_HOST_BASE_PORT` ou liberar porta.

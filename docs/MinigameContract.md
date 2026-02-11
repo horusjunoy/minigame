@@ -75,6 +75,7 @@ O runtime usa um manifesto (data-driven) para listar assets e entrypoints.
   "id": "arena_v1",
   "display_name": "Arena",
   "version": "0.1.0",
+  "content_version": "0.1.0",
   "server_entry": "Game.Minigames.Arena.ArenaMinigame, Game.Minigames.Arena",
   "client_entry": "Game.Minigames.Arena.ArenaClientView, Game.Minigames.Arena",
   "addressables": {
@@ -91,6 +92,7 @@ O runtime usa um manifesto (data-driven) para listar assets e entrypoints.
 ### Versionamento
 - `schema_version`: versão do schema do manifesto (incrementar quando o formato mudar).
 - `version`: versão do mini-game (semver recomendado).
+ - `content_version`: versão do conteúdo do mini-game (Addressables, semver recomendado).
  - Loader aceita `id@version` para selecionar uma versao especifica.
 
 ### Validação (SDK base)

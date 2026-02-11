@@ -89,6 +89,17 @@ namespace Game.Editor
                 return false;
             }
 
+            if (string.IsNullOrWhiteSpace(manifest.content_version))
+            {
+                error = "content_version_missing";
+                return false;
+            }
+            if (!TryParseVersion(manifest.content_version))
+            {
+                error = "content_version_invalid";
+                return false;
+            }
+
             if (string.IsNullOrWhiteSpace(manifest.server_entry))
             {
                 error = "server_entry_missing";

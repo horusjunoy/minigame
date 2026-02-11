@@ -13,9 +13,11 @@ namespace Game.Network.Transport.Mirror
 
         private MirrorNetworkServer _server;
         private MirrorNetworkClient _client;
+        private INetworkTransport _transport;
 
         public INetworkServer Server => _server;
         public INetworkClient Client => _client;
+        public INetworkTransport Transport => _transport;
 
         private void Awake()
         {
@@ -41,6 +43,7 @@ namespace Game.Network.Transport.Mirror
 
             _server = new MirrorNetworkServer(networkManager);
             _client = new MirrorNetworkClient(networkManager);
+            _transport = new MirrorTransportAdapter(MirrorTransport.active);
         }
 
         private void OnEnable()
@@ -153,6 +156,16 @@ namespace Game.Network.Transport.Mirror
             connection.Disconnect();
         }
 
+        public void SendError(NetworkPeerId peerId, ServerErrorMessage message)
+        {
+            if (!_connections.TryGetValue(peerId.Value, out var connection))
+            {
+                return;
+            }
+
+            connection.Send(new ServerErrorNetworkMessage(message));
+        }
+
         public void SendWelcome(NetworkPeerId peerId, WelcomeMessage message)
         {
             if (!_connections.TryGetValue(peerId.Value, out var connection))
@@ -261,6 +274,7 @@ namespace Game.Network.Transport.Mirror
         public event Action Connected;
         public event Action Disconnected;
         public event Action<WelcomeMessage> WelcomeReceived;
+        public event Action<ServerErrorMessage> ErrorReceived;
         public event Action<PongMessage> PongReceived;
         public event Action<SnapshotV1> SnapshotReceived;
 
@@ -272,6 +286,7 @@ namespace Game.Network.Transport.Mirror
         public void RegisterHandlers()
         {
             NetworkClient.RegisterHandler<WelcomeNetworkMessage>(OnWelcomeMessage, false);
+            NetworkClient.RegisterHandler<ServerErrorNetworkMessage>(OnServerErrorMessage, false);
             NetworkClient.RegisterHandler<PongNetworkMessage>(OnPongMessage, false);
             NetworkClient.RegisterHandler<SnapshotNetworkMessage>(OnSnapshotMessage, false);
             NetworkClient.OnConnectedEvent += OnConnected;
@@ -281,6 +296,7 @@ namespace Game.Network.Transport.Mirror
         public void UnregisterHandlers()
         {
             NetworkClient.UnregisterHandler<WelcomeNetworkMessage>();
+            NetworkClient.UnregisterHandler<ServerErrorNetworkMessage>();
             NetworkClient.UnregisterHandler<PongNetworkMessage>();
             NetworkClient.UnregisterHandler<SnapshotNetworkMessage>();
             NetworkClient.OnConnectedEvent -= OnConnected;
@@ -323,6 +339,11 @@ namespace Game.Network.Transport.Mirror
             Debug.Log("MirrorNetworkClient: welcome received");
 #endif
             WelcomeReceived?.Invoke(message.ToDto());
+        }
+
+        private void OnServerErrorMessage(ServerErrorNetworkMessage message)
+        {
+            ErrorReceived?.Invoke(message.ToDto());
         }
 
         private void OnPongMessage(PongNetworkMessage message)
@@ -419,6 +440,44 @@ namespace Game.Network.Transport.Mirror
         }
 
         public WelcomeMessage ToDto() => new WelcomeMessage(match_id, player_id, server_time, v);
+    }
+
+    internal struct ServerErrorNetworkMessage : NetworkMessage
+    {
+        public int v;
+        public string code;
+        public string detail;
+        public string server_build_version;
+        public string client_build_version;
+        public int server_protocol_version;
+        public int client_protocol_version;
+
+        public ServerErrorNetworkMessage(ServerErrorMessage message)
+        {
+            v = message.v;
+            code = message.code;
+            detail = message.detail;
+            server_build_version = message.server_build_version;
+            client_build_version = message.client_build_version;
+            server_protocol_version = message.server_protocol_version;
+            client_protocol_version = message.client_protocol_version;
+        }
+
+        public ServerErrorMessage ToDto()
+            => new ServerErrorMessage(code, detail, server_build_version, client_build_version, server_protocol_version, client_protocol_version, v);
+    }
+
+    internal sealed class MirrorTransportAdapter : INetworkTransport
+    {
+        private readonly MirrorTransport _transport;
+
+        public MirrorTransportAdapter(MirrorTransport transport)
+        {
+            _transport = transport;
+        }
+
+        public string Name => _transport != null ? _transport.GetType().Name : "Mirror";
+        public bool IsAvailable => _transport != null;
     }
 
     internal struct PlayerJoinedNetworkMessage : NetworkMessage

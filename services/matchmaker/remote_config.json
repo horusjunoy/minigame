@@ -1,0 +1,7 @@
+{
+  "minigame_pool": ["arena_v1", "race_v1", "coinrush_v1", "stub_v1"],
+  "blocked_minigames": [],
+  "fallback_minigame_id": "stub_v1",
+  "max_players": 8,
+  "match_duration_s": 600
+}

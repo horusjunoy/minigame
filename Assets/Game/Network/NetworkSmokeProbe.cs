@@ -12,6 +12,10 @@ namespace Game.Network
 
         private float _startTime;
         private bool _done;
+        private bool _welcomeReceived;
+        private bool _snapshotReceived;
+        private bool _requestedDisconnect;
+        private INetworkClient _client;
 
         public static bool LastSuccess { get; private set; }
         public static string LastMessage { get; private set; }
@@ -44,7 +48,10 @@ namespace Game.Network
                 return;
             }
 
-            facade.Client.WelcomeReceived += OnWelcomeReceived;
+            _client = facade.Client;
+            _client.WelcomeReceived += OnWelcomeReceived;
+            _client.SnapshotReceived += OnSnapshotReceived;
+            _client.Disconnected += OnDisconnected;
         }
 
         private void Update()
@@ -67,8 +74,56 @@ namespace Game.Network
                 return;
             }
 
-            LastSuccess = true;
+            _welcomeReceived = true;
             LastMessage = "welcome_received";
+            AppendResult("network_smoke_welcome");
+        }
+
+        private void OnSnapshotReceived(SnapshotV1 snapshot)
+        {
+            if (_done)
+            {
+                return;
+            }
+
+            if (!_welcomeReceived)
+            {
+                Fail("snapshot_before_welcome");
+                return;
+            }
+
+            _snapshotReceived = true;
+            LastMessage = "snapshot_received";
+            AppendResult("network_smoke_snapshot");
+
+            if (!_requestedDisconnect && _client != null)
+            {
+                _requestedDisconnect = true;
+                _client.StopClient();
+            }
+        }
+
+        private void OnDisconnected()
+        {
+            if (_done)
+            {
+                return;
+            }
+
+            if (!_welcomeReceived)
+            {
+                Fail("disconnect_before_welcome");
+                return;
+            }
+
+            if (!_snapshotReceived)
+            {
+                Fail("disconnect_before_snapshot");
+                return;
+            }
+
+            LastSuccess = true;
+            LastMessage = "replication_ok";
             _done = true;
             Debug.Log("network_smoke_ok");
             AppendResult("network_smoke_ok");
