@@ -1,0 +1,36 @@
+name: Repository Policy
+
+on:
+  pull_request:
+    branches:
+      - master
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+jobs:
+  no-docs-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Block Docs Changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          CHANGED="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- docs/ || true)"
+
+          if [ -n "$CHANGED" ]; then
+            echo "Changes under docs/ are not allowed in this repository."
+            echo "$CHANGED"
+            exit 1
+          fi
+
+          echo "Policy check passed: no docs/ changes detected."
