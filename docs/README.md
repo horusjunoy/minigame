@@ -7,6 +7,7 @@ Este diretório contém as bases de conhecimento para orientar desenvolvimento h
 - **docs/ProductVision.md** (visão do produto e escopo)
 - **docs/Architecture.md** (arquitetura alvo: client/server/runtime)
 - **docs/MinigameContract.md** (contrato do mini-game: lifecycle e API)
+- **docs/Releases.md** (histórico de baselines verdes, comandos e evidências)
 
 ## Data deste pack
 - Gerado em: 2026-02-05
