@@ -4,7 +4,19 @@ on:
   push:
     branches:
       - master
+  pull_request:
+    branches:
+      - master
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   workflow_dispatch:
+
+concurrency:
+  group: unity-mobile-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   unity-mobile-gate:
@@ -26,8 +38,14 @@ jobs:
             git clone --depth 1 $env:REPO_URL $repoDir
           }
           Set-Location $repoDir
-          git fetch origin master
-          git reset --hard origin/master
+          git fetch --prune origin
+          if ($env:GITHUB_EVENT_NAME -eq "pull_request") {
+            git fetch origin $env:GITHUB_SHA
+            git reset --hard FETCH_HEAD
+          } else {
+            git fetch origin master
+            git reset --hard origin/master
+          }
           "REPO_DIR=$repoDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Validate Unity Path
