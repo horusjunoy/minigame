@@ -10,12 +10,15 @@ on:
       - reopened
       - ready_for_review
 
+permissions:
+  contents: read
+
 jobs:
   no-docs-policy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0
 
@@ -43,3 +46,4 @@ jobs:
           fi
 
           echo "Policy check passed: docs/ changes are deletions only."
+
