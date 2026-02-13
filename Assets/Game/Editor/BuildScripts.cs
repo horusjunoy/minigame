@@ -41,6 +41,55 @@ namespace Game.Editor
             ExitWithReport(report);
         }
 
+        public static void BuildAndroid()
+        {
+            Directory.CreateDirectory("artifacts/builds/android");
+            Debug.Log($"BuildAndroid: start editor={EditorApplication.applicationPath}");
+            if (!HasAndroidModule())
+            {
+                Debug.LogError("Android module not found. Install Android Build Support in Unity Hub.");
+                EditorApplication.Exit(1);
+                return;
+            }
+
+            // Batchmode can occasionally load Android backend/architectures as an invalid combination.
+            // Enforce a known-good setup for environments without Android IL2CPP static libs.
+            PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.Mono2x);
+            PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARMv7;
+            Debug.Log($"BuildAndroid: scriptingBackend={PlayerSettings.GetScriptingBackend(BuildTargetGroup.Android)} architectures={PlayerSettings.Android.targetArchitectures}");
+
+            var outputPath = "artifacts/builds/android/MinigameClient.apk";
+            Debug.Log($"BuildAndroid: output={outputPath}");
+            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+            {
+                scenes = new[] { "Assets/Scenes/Bootstrap.unity" },
+                locationPathName = outputPath,
+                target = BuildTarget.Android,
+                options = BuildOptions.None
+            });
+            Debug.Log($"BuildAndroid: result={report.summary.result} totalErrors={report.summary.totalErrors} totalWarnings={report.summary.totalWarnings} output={report.summary.outputPath}");
+
+            ExitWithReport(report);
+        }
+
+        private static bool HasAndroidModule()
+        {
+            var editorPath = EditorApplication.applicationPath;
+            if (string.IsNullOrWhiteSpace(editorPath))
+            {
+                return false;
+            }
+
+            var editorDir = Path.GetDirectoryName(editorPath);
+            if (string.IsNullOrWhiteSpace(editorDir))
+            {
+                return false;
+            }
+
+            var modulePath = Path.Combine(editorDir, "Data", "PlaybackEngines", "AndroidPlayer");
+            return Directory.Exists(modulePath);
+        }
+
         private static bool HasServerPlayer()
         {
             var editorPath = EditorApplication.applicationPath;
