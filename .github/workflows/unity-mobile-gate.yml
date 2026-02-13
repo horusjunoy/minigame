@@ -18,9 +18,12 @@ concurrency:
   group: unity-mobile-gate-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   unity-mobile-gate:
-    if: ${{ vars.UNITY_CI_ENABLED == 'true' }}
+    if: ${{ vars.UNITY_CI_ENABLED == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on:
       - self-hosted
       - Windows
@@ -62,7 +65,7 @@ jobs:
             exit 1
           }
           "UNITY_PATH=$env:UNITY_PATH_SECRET" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "Using UNITY_PATH=$env:UNITY_PATH_SECRET" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          "UNITY_PATH resolved from repository secret." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
 
       - name: Build Android
         shell: pwsh
@@ -99,7 +102,7 @@ jobs:
           retention-days: 14
 
   unity-mobile-gate-disabled:
-    if: ${{ vars.UNITY_CI_ENABLED != 'true' }}
+    if: ${{ vars.UNITY_CI_ENABLED != 'true' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
     runs-on: windows-latest
     steps:
       - name: Disabled Notice
