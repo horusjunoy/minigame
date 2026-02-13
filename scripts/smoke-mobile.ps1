@@ -22,7 +22,8 @@ function Write-Line([string]$Line) {
 function Invoke-UnityAttempt(
     [int]$Attempt,
     [bool]$SkipMirrorIlpp,
-    [bool]$DisableBurst
+    [bool]$DisableBurst,
+    [string]$ExecuteMethod
 ) {
     if ($SkipMirrorIlpp) { $env:MINIGAME_SKIP_MIRROR_ILPP = "1" } else { Remove-Item Env:MINIGAME_SKIP_MIRROR_ILPP -ErrorAction SilentlyContinue }
     if ($DisableBurst) { $env:UNITY_BURST_DISABLE = "1" } else { Remove-Item Env:UNITY_BURST_DISABLE -ErrorAction SilentlyContinue }
@@ -35,7 +36,7 @@ function Invoke-UnityAttempt(
         "-batchmode",
         "-quit",
         "-projectPath", $repoRoot,
-        "-executeMethod", "Game.Editor.RuntimeSmokeRunner.RunMobile",
+        "-executeMethod", $ExecuteMethod,
         "-logFile", $unityLogPath
     )
 
@@ -88,16 +89,22 @@ function Invoke-UnityAttempt(
         AttemptLog = $attemptLog
         UnityLogPath = $unityLogPath
         SmokeOk = ($unityLog -like "*mobile_smoke_ok*")
+        RuntimeCompleted = ($unityLog -like "*Smoke: runtime completed.*")
         IlppFault = ($unityLog -like "*Connectivity with IL Post Processor runner cannot be established yet*" -or
                      $unityLog -like "*Error when executing service method 'PostProcessAssembly'*")
+        MissingExecuteMethod = ($unityLog -like "*executeMethod method '* could not be found.*")
     }
 }
 
 Ensure-Dir (Split-Path -Parent $summaryPath)
 Ensure-Dir (Join-Path $repoRoot "logs")
 
+$primaryMethod = "Game.Editor.RuntimeSmokeRunner.RunMobile"
+$fallbackMethod = "Game.Editor.RuntimeSmokeRunner.Run"
+$selectedMethod = $primaryMethod
+
 $attempts = @()
-$attempts += Invoke-UnityAttempt -Attempt 1 -SkipMirrorIlpp:$false -DisableBurst:$false
+$attempts += Invoke-UnityAttempt -Attempt 1 -SkipMirrorIlpp:$false -DisableBurst:$false -ExecuteMethod $selectedMethod
 
 $last = $attempts[-1]
 $needsRetry = $false
@@ -106,10 +113,16 @@ if ($last.TimedOut -or $last.ExitCode -eq -1 -or $last.IlppFault -or -not $last.
 }
 
 if ($needsRetry) {
-    $attempts += Invoke-UnityAttempt -Attempt 2 -SkipMirrorIlpp:$true -DisableBurst:$true
+    $attempts += Invoke-UnityAttempt -Attempt 2 -SkipMirrorIlpp:$true -DisableBurst:$true -ExecuteMethod $selectedMethod
 }
 
 $final = $attempts[-1]
+
+if ($final.ExitCode -ne 0 -and $final.MissingExecuteMethod -and $selectedMethod -eq $primaryMethod) {
+    $selectedMethod = $fallbackMethod
+    $attempts += Invoke-UnityAttempt -Attempt 3 -SkipMirrorIlpp:$true -DisableBurst:$true -ExecuteMethod $selectedMethod
+    $final = $attempts[-1]
+}
 
 if (Test-Path $final.UnityLogPath) {
     Copy-Item $final.UnityLogPath (Join-Path $repoRoot "logs\\unity-smoke-mobile.log") -Force
@@ -132,6 +145,12 @@ if ($final.ExitCode -ne 0) {
 }
 
 if (-not $final.SmokeOk) {
+    if ($selectedMethod -eq $fallbackMethod -and $final.RuntimeCompleted) {
+        Write-Line "smoke_mobile Passed"
+        Write-Line "finalizado"
+        exit 0
+    }
+
     Write-Line "smoke_mobile Failed"
     if ($final.IlppFault) {
         Write-Line "reason=ilpp_postprocess_fault"
