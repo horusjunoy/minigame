@@ -11,7 +11,8 @@ jobs:
     if: ${{ vars.UNITY_CI_ENABLED == 'true' }}
     runs-on:
       - self-hosted
-      - windows
+      - Windows
+      - X64
       - unity
     steps:
       - uses: actions/checkout@v4
