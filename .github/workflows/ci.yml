@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      UNITY_PATH: ${{ secrets.UNITY_PATH }}
     steps:
       - uses: actions/checkout@v4
 
@@ -17,54 +19,46 @@ jobs:
         run: .\scripts\check.ps1
 
       - name: Test
-        if: ${{ secrets.UNITY_PATH != '' }}
+        if: ${{ env.UNITY_PATH != '' }}
         shell: pwsh
-        env:
-          UNITY_PATH: ${{ secrets.UNITY_PATH }}
         run: .\scripts\test.ps1
 
       - name: Build Client
-        if: ${{ secrets.UNITY_PATH != '' }}
+        if: ${{ env.UNITY_PATH != '' }}
         shell: pwsh
-        env:
-          UNITY_PATH: ${{ secrets.UNITY_PATH }}
         run: .\scripts\build-client.ps1
 
       - name: Build Server
-        if: ${{ secrets.UNITY_PATH != '' }}
+        if: ${{ env.UNITY_PATH != '' }}
         shell: pwsh
-        env:
-          UNITY_PATH: ${{ secrets.UNITY_PATH }}
         run: .\scripts\build-server.ps1
 
       - name: Unity Steps Skipped Notice
-        if: ${{ secrets.UNITY_PATH == '' }}
+        if: ${{ env.UNITY_PATH == '' }}
         shell: pwsh
         run: Write-Host "UNITY_PATH secret not set. Unity-dependent CI steps were skipped."
 
   mobile-gate:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: windows-latest
+    env:
+      UNITY_PATH: ${{ secrets.UNITY_PATH }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Unity Steps Skipped Notice
-        if: ${{ secrets.UNITY_PATH == '' }}
+        if: ${{ env.UNITY_PATH == '' }}
         shell: pwsh
         run: Write-Host "UNITY_PATH secret not set. Mobile gate steps were skipped."
 
       - name: Build Android
-        if: ${{ secrets.UNITY_PATH != '' }}
+        if: ${{ env.UNITY_PATH != '' }}
         shell: pwsh
-        env:
-          UNITY_PATH: ${{ secrets.UNITY_PATH }}
         run: .\scripts\build-android.ps1
 
       - name: Smoke Mobile
-        if: ${{ secrets.UNITY_PATH != '' }}
+        if: ${{ env.UNITY_PATH != '' }}
         shell: pwsh
-        env:
-          UNITY_PATH: ${{ secrets.UNITY_PATH }}
         run: .\scripts\smoke-mobile.ps1
 
       - name: Upload Mobile Logs
