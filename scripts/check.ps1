@@ -10,8 +10,7 @@ $required = @(
   "Assets/Game/Network",
   "Assets/Game/Server",
   "Assets/Game/Client",
-  "Assets/Game/Minigames/Stub",
-  "docs"
+  "Assets/Game/Minigames/Stub"
 )
 foreach ($path in $required) {
   if (-not (Test-Path $path)) {
