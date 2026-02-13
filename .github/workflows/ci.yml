@@ -43,18 +43,25 @@ jobs:
         run: Write-Host "UNITY_PATH secret not set. Unity-dependent CI steps were skipped."
 
   mobile-gate:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master' && secrets.UNITY_PATH != ''
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
+      - name: Unity Steps Skipped Notice
+        if: ${{ secrets.UNITY_PATH == '' }}
+        shell: pwsh
+        run: Write-Host "UNITY_PATH secret not set. Mobile gate steps were skipped."
+
       - name: Build Android
+        if: ${{ secrets.UNITY_PATH != '' }}
         shell: pwsh
         env:
           UNITY_PATH: ${{ secrets.UNITY_PATH }}
         run: .\scripts\build-android.ps1
 
       - name: Smoke Mobile
+        if: ${{ secrets.UNITY_PATH != '' }}
         shell: pwsh
         env:
           UNITY_PATH: ${{ secrets.UNITY_PATH }}
