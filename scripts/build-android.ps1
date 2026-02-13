@@ -8,6 +8,7 @@ $repoRoot = Get-RepoRoot
 $logPath = New-LogPath $repoRoot "build_android"
 $summaryPath = Join-Path $repoRoot ("logs\\build_android_results_" + (Get-Date -Format "yyyyMMdd_HHmmss") + ".log")
 $apkPath = Join-Path $repoRoot "artifacts\\builds\\android\\MinigameClient.apk"
+$unityLockPath = Join-Path $repoRoot "Temp\\UnityLockfile"
 
 function Write-Line([string]$Line) {
     $Line | Out-Host
@@ -38,6 +39,20 @@ function Resolve-UnityPathWithAndroid {
     }
 
     return $null
+}
+
+function Stop-UnityProjectProcesses([string]$ProjectPath) {
+    $escaped = [Regex]::Escape($ProjectPath)
+    $running = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.Name -eq "Unity.exe" -and
+            $_.CommandLine -and
+            $_.CommandLine -match $escaped
+        }
+
+    foreach ($proc in $running) {
+        try { Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue } catch {}
+    }
 }
 
 function Invoke-UnityAttempt(
@@ -85,6 +100,7 @@ function Invoke-UnityAttempt(
     if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
         $timedOut = $true
         try { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue } catch {}
+        Stop-UnityProjectProcesses -ProjectPath $repoRoot
         $exitCode = 124
     } else {
         $exitCode = $process.ExitCode
@@ -137,6 +153,8 @@ if ($last.TimedOut -or $last.ExitCode -eq -1 -or $last.IlppFault -or -not $last.
 }
 
 if ($needsRetry) {
+    Stop-UnityProjectProcesses -ProjectPath $repoRoot
+    Remove-Item $unityLockPath -ErrorAction SilentlyContinue
     $attempts += Invoke-UnityAttempt -UnityPath $unityPath -Attempt 2 -SkipMirrorIlpp:$true -DisableBurst:$true
 }
 

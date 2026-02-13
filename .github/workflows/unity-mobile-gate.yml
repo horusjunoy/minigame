@@ -15,6 +15,8 @@ jobs:
       - unity
     steps:
       - uses: actions/checkout@v4
+        with:
+          clean: false
 
       - name: Validate Unity Path
         shell: pwsh
@@ -34,7 +36,7 @@ jobs:
 
       - name: Build Android
         shell: pwsh
-        run: .\scripts\build-android.ps1
+        run: .\scripts\build-android.ps1 -TimeoutSeconds 1800
 
       - name: Smoke Mobile
         shell: pwsh
