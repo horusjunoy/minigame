@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    branches:
+      - master
   pull_request:
 
 jobs:
@@ -31,3 +33,45 @@ jobs:
         env:
           UNITY_PATH: ${{ secrets.UNITY_PATH }}
         run: .\scripts\build-server.ps1
+
+  mobile-gate:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Android
+        shell: pwsh
+        env:
+          UNITY_PATH: ${{ secrets.UNITY_PATH }}
+        run: .\scripts\build-android.ps1
+
+      - name: Smoke Mobile
+        shell: pwsh
+        env:
+          UNITY_PATH: ${{ secrets.UNITY_PATH }}
+        run: .\scripts\smoke-mobile.ps1
+
+      - name: Upload Mobile Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-logs-${{ github.run_id }}
+          path: |
+            logs/build_android_*.log
+            logs/build_android_results_*.log
+            logs/unity-build-android*.log
+            logs/smoke_mobile_*.log
+            logs/smoke_mobile_results_*.log
+            logs/unity-smoke-mobile*.log
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload Android APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-${{ github.run_id }}
+          path: artifacts/builds/android/MinigameClient.apk
+          if-no-files-found: warn
+          retention-days: 14
