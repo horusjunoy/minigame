@@ -15,9 +15,20 @@ jobs:
       - X64
       - unity
     steps:
-      - uses: actions/checkout@v4
-        with:
-          clean: false
+      - name: Prepare Persistent Workspace
+        shell: pwsh
+        env:
+          REPO_URL: https://github.com/${{ github.repository }}.git
+        run: |
+          $repoDir = "C:\ci\minigame"
+          if (-not (Test-Path (Join-Path $repoDir ".git"))) {
+            if (-not (Test-Path "C:\ci")) { New-Item -ItemType Directory -Path "C:\ci" | Out-Null }
+            git clone --depth 1 $env:REPO_URL $repoDir
+          }
+          Set-Location $repoDir
+          git fetch origin master
+          git reset --hard origin/master
+          "REPO_DIR=$repoDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Validate Unity Path
         shell: pwsh
@@ -37,10 +48,12 @@ jobs:
 
       - name: Build Android
         shell: pwsh
+        working-directory: ${{ env.REPO_DIR }}
         run: .\scripts\build-android.ps1 -TimeoutSeconds 1800
 
       - name: Smoke Mobile
         shell: pwsh
+        working-directory: ${{ env.REPO_DIR }}
         run: .\scripts\smoke-mobile.ps1
 
       - name: Upload Mobile Logs
@@ -49,12 +62,12 @@ jobs:
         with:
           name: unity-mobile-logs-${{ github.run_id }}
           path: |
-            logs/build_android_*.log
-            logs/build_android_results_*.log
-            logs/unity-build-android*.log
-            logs/smoke_mobile_*.log
-            logs/smoke_mobile_results_*.log
-            logs/unity-smoke-mobile*.log
+            ${{ env.REPO_DIR }}\logs\build_android_*.log
+            ${{ env.REPO_DIR }}\logs\build_android_results_*.log
+            ${{ env.REPO_DIR }}\logs\unity-build-android*.log
+            ${{ env.REPO_DIR }}\logs\smoke_mobile_*.log
+            ${{ env.REPO_DIR }}\logs\smoke_mobile_results_*.log
+            ${{ env.REPO_DIR }}\logs\unity-smoke-mobile*.log
           if-no-files-found: warn
           retention-days: 14
 
@@ -63,7 +76,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unity-android-apk-${{ github.run_id }}
-          path: artifacts/builds/android/MinigameClient.apk
+          path: ${{ env.REPO_DIR }}\artifacts\builds\android\MinigameClient.apk
           if-no-files-found: warn
           retention-days: 14
 
