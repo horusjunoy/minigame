@@ -25,12 +25,21 @@ jobs:
           set -euo pipefail
           BASE_SHA="${{ github.event.pull_request.base.sha }}"
           HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-          CHANGED="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- docs/ || true)"
+          CHANGED="$(git diff --name-status "$BASE_SHA" "$HEAD_SHA" -- docs/ || true)"
 
-          if [ -n "$CHANGED" ]; then
-            echo "Changes under docs/ are not allowed in this repository."
-            echo "$CHANGED"
+          if [ -z "$CHANGED" ]; then
+            echo "Policy check passed: no docs/ changes detected."
+            exit 0
+          fi
+
+          echo "Detected docs/ changes:"
+          echo "$CHANGED"
+
+          NON_DELETE="$(echo "$CHANGED" | awk '$1 != "D" {print $0}')"
+          if [ -n "$NON_DELETE" ]; then
+            echo "Only deletions in docs/ are allowed. Add/modify/rename is blocked."
+            echo "$NON_DELETE"
             exit 1
           fi
 
-          echo "Policy check passed: no docs/ changes detected."
+          echo "Policy check passed: docs/ changes are deletions only."
