@@ -79,7 +79,7 @@ jobs:
 
       - name: Upload Mobile Logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: unity-mobile-logs-${{ github.run_id }}
           path: |
@@ -94,7 +94,7 @@ jobs:
 
       - name: Upload Android APK
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: unity-android-apk-${{ github.run_id }}
           path: ${{ env.REPO_DIR }}\artifacts\builds\android\MinigameClient.apk
@@ -110,3 +110,4 @@ jobs:
         run: |
           "Unity Mobile Gate is disabled. Set repository variable UNITY_CI_ENABLED=true and provide a self-hosted runner with labels [self-hosted, windows, unity]." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
           Write-Host "Unity Mobile Gate disabled."
+

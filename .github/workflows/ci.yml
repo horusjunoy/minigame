@@ -13,7 +13,7 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
       - name: Resolve Unity Path
         id: unity
@@ -66,7 +66,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
       - name: Resolve Unity Path
         id: unity
@@ -108,7 +108,7 @@ jobs:
 
       - name: Upload Mobile Logs
         if: ${{ always() && steps.unity.outputs.unity_available == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: mobile-logs-${{ github.run_id }}
           path: |
@@ -123,9 +123,10 @@ jobs:
 
       - name: Upload Android APK
         if: ${{ always() && steps.unity.outputs.unity_available == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: android-apk-${{ github.run_id }}
           path: artifacts/builds/android/MinigameClient.apk
           if-no-files-found: warn
           retention-days: 14
+
