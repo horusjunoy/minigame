@@ -31,3 +31,6 @@ artifacts/
 runs/
 logs/
 docs/
+tickets/
+codex_*.md
+services/matchmaker/README.md
