@@ -27,7 +27,9 @@ Ter um pipeline previsível para:
 - Unit tests (Core)
 - Build client
 - Build server headless
+- Build Android (dev): `.\scripts\build-android.ps1`
 - Build content (Addressables catalog): `.\scripts\build-content.ps1`
+- Smoke mobile de fluxo curto (hub -> partida -> resultados -> hub): `.\scripts\smoke-mobile.ps1`
 
 ---
 
@@ -41,6 +43,17 @@ Ter um pipeline previsível para:
 
 ---
 
-## 6) Mobile (futuro)
-- Automatizar builds Android (CI) e iOS (mac runner).
-- Controle de quality settings por plataforma.
+## 6) Mobile
+- Build Android automatizado via script de CI (`.\scripts\build-android.ps1`).
+- Quando o modulo Android nao estiver instalado, o build falha com erro claro no log.
+- Smoke mobile em batch para validar loop basico sem device farm (`.\scripts\smoke-mobile.ps1`).
+- iOS ainda depende de runner macOS dedicado.
+
+### 6.1) Mobile Gate em CI (self-hosted)
+- Workflow dedicado: `.github/workflows/unity-mobile-gate.yml`.
+- Ativacao: criar variavel de repositório `UNITY_CI_ENABLED=true`.
+- Runner requerido: self-hosted Windows com labels `self-hosted`, `windows`, `unity`.
+- Secret requerido: `UNITY_PATH` apontando para o `Unity.exe` instalado no runner.
+- Gate executado quando ativo:
+  - `.\scripts\build-android.ps1`
+  - `.\scripts\smoke-mobile.ps1`
