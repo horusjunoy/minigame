@@ -55,6 +55,12 @@ function Stop-UnityProjectProcesses([string]$ProjectPath) {
     }
 }
 
+function Prepare-Retry {
+    Stop-UnityProjectProcesses -ProjectPath $repoRoot
+    Remove-Item $unityLockPath -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+}
+
 function Invoke-UnityAttempt(
     [string]$UnityPath,
     [int]$Attempt,
@@ -142,6 +148,7 @@ Ensure-Dir (Join-Path $repoRoot "artifacts")
 Ensure-Dir (Join-Path $repoRoot "logs")
 Ensure-Dir (Split-Path -Parent $summaryPath)
 Remove-Item $apkPath -ErrorAction SilentlyContinue
+Prepare-Retry
 
 $attempts = @()
 $attempts += Invoke-UnityAttempt -UnityPath $unityPath -Attempt 1 -SkipMirrorIlpp:$false -DisableBurst:$false
@@ -153,12 +160,22 @@ if ($last.TimedOut -or $last.ExitCode -eq -1 -or $last.IlppFault -or -not $last.
 }
 
 if ($needsRetry) {
-    Stop-UnityProjectProcesses -ProjectPath $repoRoot
-    Remove-Item $unityLockPath -ErrorAction SilentlyContinue
+    Prepare-Retry
     $attempts += Invoke-UnityAttempt -UnityPath $unityPath -Attempt 2 -SkipMirrorIlpp:$true -DisableBurst:$true
 }
 
 $final = $attempts[-1]
+
+$needsThirdAttempt = $false
+if ($final.TimedOut -or $final.ExitCode -eq -1 -or $final.IlppFault -or -not $final.MethodStarted -or -not (Test-Path $apkPath)) {
+    $needsThirdAttempt = $true
+}
+
+if ($needsThirdAttempt) {
+    Prepare-Retry
+    $attempts += Invoke-UnityAttempt -UnityPath $unityPath -Attempt 3 -SkipMirrorIlpp:$true -DisableBurst:$true
+    $final = $attempts[-1]
+}
 
 if (Test-Path $final.UnityLogPath) {
     Copy-Item $final.UnityLogPath (Join-Path $repoRoot "logs\\unity-build-android.log") -Force
