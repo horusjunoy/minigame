@@ -47,3 +47,34 @@ jobs:
 
           echo "Policy check passed: docs/ changes are deletions only."
 
+      - name: Block Internal Process Files
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          ALL_CHANGED="$(git diff --name-status "$BASE_SHA" "$HEAD_SHA" || true)"
+
+          if [ -z "$ALL_CHANGED" ]; then
+            echo "Policy check passed: no repository changes detected."
+            exit 0
+          fi
+
+          BLOCKED="$(echo "$ALL_CHANGED" | awk '
+            {
+              status=$1
+              path=$2
+              if ((path ~ /^tickets\// || path ~ /^codex_.*\.md$/ || path == "services/matchmaker/README.md") && status != "D") {
+                print $0
+              }
+            }'
+          )"
+
+          if [ -n "$BLOCKED" ]; then
+            echo "Internal process files are blocked from add/modify/rename in public repo:"
+            echo "$BLOCKED"
+            exit 1
+          fi
+
+          echo "Policy check passed: no blocked internal files were introduced."
+
