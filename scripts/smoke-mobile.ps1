@@ -134,6 +134,10 @@ if ($last.TimedOut -or $last.ExitCode -eq -1 -or $last.IlppFault -or -not $last.
     $needsRetry = $true
 }
 
+if ($last.ExitCode -ne 0 -and $last.MissingExecuteMethod -and $selectedMethod -eq $primaryMethod) {
+    $selectedMethod = $fallbackMethod
+}
+
 if ($needsRetry) {
     Prepare-Retry
     $attempts += Invoke-UnityAttempt -Attempt 2 -SkipMirrorIlpp:$true -DisableBurst:$true -ExecuteMethod $selectedMethod
