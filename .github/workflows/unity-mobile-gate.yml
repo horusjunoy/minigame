@@ -31,6 +31,23 @@ jobs:
       - X64
       - unity
     steps:
+      - name: Runner Preflight Cleanup
+        shell: pwsh
+        run: |
+          $repoDir = "C:\ci\minigame"
+          $lockPath = Join-Path $repoDir "Temp\UnityLockfile"
+          $escaped = [Regex]::Escape($repoDir)
+          $running = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+            Where-Object {
+              $_.Name -eq "Unity.exe" -and
+              $_.CommandLine -and
+              $_.CommandLine -match $escaped
+            }
+          foreach ($proc in $running) {
+            try { Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue } catch {}
+          }
+          Remove-Item $lockPath -ErrorAction SilentlyContinue
+
       - name: Prepare Persistent Workspace
         shell: pwsh
         env:
@@ -101,6 +118,24 @@ jobs:
           path: ${{ env.REPO_DIR }}\artifacts\builds\android\MinigameClient.apk
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Runner Post Cleanup
+        if: always()
+        shell: pwsh
+        run: |
+          $repoDir = "C:\ci\minigame"
+          $lockPath = Join-Path $repoDir "Temp\UnityLockfile"
+          $escaped = [Regex]::Escape($repoDir)
+          $running = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+            Where-Object {
+              $_.Name -eq "Unity.exe" -and
+              $_.CommandLine -and
+              $_.CommandLine -match $escaped
+            }
+          foreach ($proc in $running) {
+            try { Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue } catch {}
+          }
+          Remove-Item $lockPath -ErrorAction SilentlyContinue
 
   unity-mobile-gate-disabled:
     if: ${{ vars.UNITY_CI_ENABLED != 'true' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
