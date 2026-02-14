@@ -7,6 +7,7 @@ param(
 $repoRoot = Get-RepoRoot
 $logPath = New-LogPath $repoRoot "smoke_mobile"
 $summaryPath = Join-Path $repoRoot ("logs\\smoke_mobile_results_" + (Get-Date -Format "yyyyMMdd_HHmmss") + ".log")
+$unityLockPath = Join-Path $repoRoot "Temp\\UnityLockfile"
 $unityPath = Resolve-UnityPath
 
 if (-not $unityPath) {
@@ -17,6 +18,26 @@ if (-not $unityPath) {
 function Write-Line([string]$Line) {
     $Line | Out-Host
     $Line | Out-File -FilePath $summaryPath -Encoding utf8 -Append
+}
+
+function Stop-UnityProjectProcesses([string]$ProjectPath) {
+    $escaped = [Regex]::Escape($ProjectPath)
+    $running = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.Name -eq "Unity.exe" -and
+            $_.CommandLine -and
+            $_.CommandLine -match $escaped
+        }
+
+    foreach ($proc in $running) {
+        try { Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue } catch {}
+    }
+}
+
+function Prepare-Retry {
+    Stop-UnityProjectProcesses -ProjectPath $repoRoot
+    Remove-Item $unityLockPath -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
 }
 
 function Invoke-UnityAttempt(
@@ -64,6 +85,7 @@ function Invoke-UnityAttempt(
     if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
         $timedOut = $true
         try { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue } catch {}
+        Stop-UnityProjectProcesses -ProjectPath $repoRoot
         $exitCode = 124
     } else {
         $exitCode = $process.ExitCode
@@ -113,6 +135,7 @@ if ($last.TimedOut -or $last.ExitCode -eq -1 -or $last.IlppFault -or -not $last.
 }
 
 if ($needsRetry) {
+    Prepare-Retry
     $attempts += Invoke-UnityAttempt -Attempt 2 -SkipMirrorIlpp:$true -DisableBurst:$true -ExecuteMethod $selectedMethod
 }
 
@@ -120,6 +143,7 @@ $final = $attempts[-1]
 
 if ($final.ExitCode -ne 0 -and $final.MissingExecuteMethod -and $selectedMethod -eq $primaryMethod) {
     $selectedMethod = $fallbackMethod
+    Prepare-Retry
     $attempts += Invoke-UnityAttempt -Attempt 3 -SkipMirrorIlpp:$true -DisableBurst:$true -ExecuteMethod $selectedMethod
     $final = $attempts[-1]
 }
