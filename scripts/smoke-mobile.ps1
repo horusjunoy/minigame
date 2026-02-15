@@ -72,6 +72,7 @@ function Invoke-UnityAttempt(
 
     $args = @(
         "-batchmode",
+        "-nographics",
         "-quit",
         "-projectPath", $repoRoot,
         "-executeMethod", $ExecuteMethod,
