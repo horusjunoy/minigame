@@ -42,6 +42,23 @@ function Resolve-UnityPathWithAndroid {
 }
 
 function Stop-UnityProjectProcesses([string]$ProjectPath) {
+    if ($env:GITHUB_ACTIONS -eq "true" -or $env:MINIGAME_CI_KILL_ALL_UNITY -eq "1") {
+        $targets = @(
+            "Unity",
+            "UnityCrashHandler64",
+            "Unity.ILPP.Runner",
+            "UnityPackageManager",
+            "UnityShaderCompiler",
+            "UnityAutoQuitter"
+        )
+        foreach ($name in $targets) {
+            Get-Process -Name $name -ErrorAction SilentlyContinue | ForEach-Object {
+                try { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue } catch {}
+            }
+        }
+        return
+    }
+
     $escaped = [Regex]::Escape($ProjectPath)
     $running = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
         Where-Object {
