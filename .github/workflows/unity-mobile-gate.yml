@@ -88,7 +88,7 @@ jobs:
       - name: Build Android
         shell: pwsh
         working-directory: ${{ env.REPO_DIR }}
-        run: .\scripts\build-android.ps1 -TimeoutSeconds 1800
+        run: .\scripts\build-android.ps1 -TimeoutSeconds 1200
 
       - name: Smoke Mobile
         shell: pwsh
