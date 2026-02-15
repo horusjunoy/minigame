@@ -123,10 +123,7 @@ jobs:
             $item = Get-Item $repoLibrary -Force
             if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
               $isJunction = $true
-              try {
-                $resolved = (Get-Item $repoLibrary -Force).Target
-                if ($resolved -eq $env:LIB_CACHE_DIR) { $targetOk = $true }
-              } catch {}
+              $targetOk = $true
             }
           }
 
@@ -135,8 +132,24 @@ jobs:
             return
           }
 
-          Remove-Item $repoLibrary -Recurse -Force -ErrorAction SilentlyContinue
-          New-Item -ItemType Junction -Path $repoLibrary -Target $env:LIB_CACHE_DIR | Out-Null
+          if (Test-Path $repoLibrary) {
+            # Remove any existing folder/link aggressively (Unity sometimes leaves read-only files).
+            cmd /c "attrib -R -H -S \"$repoLibrary\" /S /D 2>nul & rmdir /s /q \"$repoLibrary\""
+          }
+
+          cmd /c "mklink /J \"$repoLibrary\" \"$env:LIB_CACHE_DIR\"" | Out-Null
+
+          if (-not (Test-Path $repoLibrary)) {
+            Write-Error "Failed to create Library junction."
+            exit 1
+          }
+
+          $item = Get-Item $repoLibrary -Force
+          if (-not ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            Write-Error "Library is not a junction/reparse point after mklink."
+            exit 1
+          }
+
           "Library linked to cache via junction: $env:LIB_CACHE_DIR" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
 
       - name: Build Android
