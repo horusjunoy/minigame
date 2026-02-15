@@ -82,13 +82,33 @@ function Invoke-UnityAttempt(
 
     $exitCode = 0
     $timedOut = $false
-    if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
-        $timedOut = $true
-        try { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue } catch {}
-        Stop-UnityProjectProcesses -ProjectPath $repoRoot
-        $exitCode = 124
-    } else {
-        $exitCode = $process.ExitCode
+    $pollMs = 15000
+    $heartbeatEverySeconds = 60
+    $nextHeartbeat = (Get-Date).AddSeconds($heartbeatEverySeconds)
+    $deadline = $start.AddSeconds($TimeoutSeconds)
+
+    while ($true) {
+        if ($process.WaitForExit($pollMs)) {
+            $exitCode = $process.ExitCode
+            break
+        }
+
+        $now = Get-Date
+        if ($now -ge $deadline) {
+            $timedOut = $true
+            try { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue } catch {}
+            Stop-UnityProjectProcesses -ProjectPath $repoRoot
+            $exitCode = 124
+            break
+        }
+
+        if ($now -ge $nextHeartbeat) {
+            $elapsed = [int](New-TimeSpan -Start $start -End $now).TotalSeconds
+            $heartbeat = "heartbeat attempt=$Attempt elapsed_s=$elapsed pid=$($process.Id)"
+            $heartbeat | Out-Host
+            $heartbeat | Out-File -FilePath $attemptLog -Encoding utf8 -Append
+            $nextHeartbeat = $now.AddSeconds($heartbeatEverySeconds)
+        }
     }
 
     if (Test-Path $stdoutLog) { Get-Content $stdoutLog | Out-File -FilePath $attemptLog -Encoding utf8 -Append }
