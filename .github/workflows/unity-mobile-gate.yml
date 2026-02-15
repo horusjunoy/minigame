@@ -107,40 +107,37 @@ jobs:
           $key = "$safeBranch-$digest"
           $cacheRoot = "C:\ci\unity-cache\library"
           $cacheDir = Join-Path $cacheRoot $key
-          $stateFile = "C:\ci\unity-cache\state\active-library-key.txt"
           "LIB_CACHE_KEY=$key" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "LIB_CACHE_DIR=$cacheDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "LIB_CACHE_STATE_FILE=$stateFile" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "Library cache key: $key" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
 
-      - name: Restore Library Cache
+      - name: Link Library To Cache (Junction)
         shell: pwsh
         run: |
           $repoLibrary = Join-Path $env:REPO_DIR "Library"
-          $stateDir = Split-Path -Parent $env:LIB_CACHE_STATE_FILE
-          if (-not (Test-Path $stateDir)) { New-Item -ItemType Directory -Path $stateDir -Force | Out-Null }
-          $activeKey = if (Test-Path $env:LIB_CACHE_STATE_FILE) { (Get-Content $env:LIB_CACHE_STATE_FILE -Raw).Trim() } else { "" }
+          if (-not (Test-Path $env:LIB_CACHE_DIR)) { New-Item -ItemType Directory -Path $env:LIB_CACHE_DIR -Force | Out-Null }
 
-          if ($activeKey -eq $env:LIB_CACHE_KEY -and (Test-Path $repoLibrary)) {
-            "Library cache already active for key $env:LIB_CACHE_KEY" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
-            return
+          $isJunction = $false
+          $targetOk = $false
+          if (Test-Path $repoLibrary) {
+            $item = Get-Item $repoLibrary -Force
+            if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+              $isJunction = $true
+              try {
+                $resolved = (Get-Item $repoLibrary -Force).Target
+                if ($resolved -eq $env:LIB_CACHE_DIR) { $targetOk = $true }
+              } catch {}
+            }
           }
 
-          if (-not (Test-Path $env:LIB_CACHE_DIR)) {
-            "Library cache miss for key $env:LIB_CACHE_KEY" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          if ($isJunction -and $targetOk) {
+            "Library already linked to cache: $env:LIB_CACHE_DIR" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
             return
           }
 
           Remove-Item $repoLibrary -Recurse -Force -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory -Path $repoLibrary -Force | Out-Null
-          robocopy $env:LIB_CACHE_DIR $repoLibrary /MIR /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
-          if ($LASTEXITCODE -gt 7) {
-            Write-Error "Library cache restore failed with robocopy exit code $LASTEXITCODE"
-            exit 1
-          }
-
-          $env:LIB_CACHE_KEY | Out-File -FilePath $env:LIB_CACHE_STATE_FILE -Encoding utf8 -Force
-          "Library cache restored for key $env:LIB_CACHE_KEY" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          New-Item -ItemType Junction -Path $repoLibrary -Target $env:LIB_CACHE_DIR | Out-Null
+          "Library linked to cache via junction: $env:LIB_CACHE_DIR" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
 
       - name: Build Android
         shell: pwsh
@@ -151,27 +148,6 @@ jobs:
         shell: pwsh
         working-directory: ${{ env.REPO_DIR }}
         run: .\scripts\smoke-mobile.ps1
-
-      - name: Save Library Cache
-        if: success()
-        shell: pwsh
-        run: |
-          $repoLibrary = Join-Path $env:REPO_DIR "Library"
-          if (-not (Test-Path $repoLibrary)) {
-            "Library folder not found, skipping cache save." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
-            return
-          }
-          if (-not (Test-Path $env:LIB_CACHE_DIR)) { New-Item -ItemType Directory -Path $env:LIB_CACHE_DIR -Force | Out-Null }
-          robocopy $repoLibrary $env:LIB_CACHE_DIR /MIR /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
-          if ($LASTEXITCODE -gt 7) {
-            Write-Error "Library cache save failed with robocopy exit code $LASTEXITCODE"
-            exit 1
-          }
-
-          $stateDir = Split-Path -Parent $env:LIB_CACHE_STATE_FILE
-          if (-not (Test-Path $stateDir)) { New-Item -ItemType Directory -Path $stateDir -Force | Out-Null }
-          $env:LIB_CACHE_KEY | Out-File -FilePath $env:LIB_CACHE_STATE_FILE -Encoding utf8 -Force
-          "Library cache saved for key $env:LIB_CACHE_KEY" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
 
       - name: Upload Mobile Logs
         if: ${{ failure() || cancelled() }}
