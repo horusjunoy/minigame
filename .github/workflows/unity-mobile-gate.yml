@@ -1,9 +1,6 @@
 name: Unity Mobile Gate
 
 on:
-  push:
-    branches:
-      - master
   pull_request:
     branches:
       - master
@@ -96,7 +93,7 @@ jobs:
         run: .\scripts\smoke-mobile.ps1
 
       - name: Upload Mobile Logs
-        if: always()
+        if: ${{ failure() || cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: unity-mobile-logs-${{ github.run_id }}
@@ -111,7 +108,7 @@ jobs:
           retention-days: 14
 
       - name: Upload Android APK
-        if: always()
+        if: ${{ failure() || cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: unity-android-apk-${{ github.run_id }}
