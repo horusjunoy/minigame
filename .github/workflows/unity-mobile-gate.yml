@@ -207,6 +207,44 @@ jobs:
           }
           Remove-Item $lockPath -ErrorAction SilentlyContinue
 
+      - name: Force Runner Flush
+        if: always()
+        shell: pwsh
+        run: |
+          $targets = @(
+            "Unity",
+            "UnityCrashHandler64",
+            "Unity.ILPP.Runner",
+            "UnityPackageManager",
+            "UnityShaderCompiler",
+            "UnityAutoQuitter",
+            "adb",
+            "java"
+          )
+          $stillRunning = @()
+          foreach ($name in $targets) {
+            $procs = Get-Process -Name $name -ErrorAction SilentlyContinue
+            if ($procs) {
+              $stillRunning += $procs | Select-Object -First 5 | ForEach-Object { "$name(pid=$($_.Id))" }
+            }
+          }
+
+          $ts = (Get-Date).ToString("o")
+          "runner_flush_ts=$ts" | Out-Host
+          "runner_flush_ts=$ts" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
+          if ($stillRunning.Count -gt 0) {
+            $msg = "runner_flush_processes_still_running=" + ($stillRunning -join ",")
+            $msg | Out-Host
+            $msg | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          } else {
+            "runner_flush_processes_still_running=none" | Out-Host
+            "runner_flush_processes_still_running=none" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          }
+
+          # Give the runner a moment to flush logs/results and close the job cleanly.
+          Start-Sleep -Seconds 3
+
   unity-mobile-gate-disabled:
     if: ${{ vars.UNITY_CI_ENABLED != 'true' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
     runs-on: windows-latest
