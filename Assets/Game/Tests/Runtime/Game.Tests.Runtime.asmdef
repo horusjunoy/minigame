@@ -3,7 +3,8 @@
   "references": [
     "Game.Core",
     "Game.Runtime",
-    "Game.Minigames.Stub"
+    "Game.Minigames.Stub",
+    "Game.Server"
   ],
   "includePlatforms": [
     "Editor"
