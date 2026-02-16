@@ -114,13 +114,15 @@ jobs:
       - name: Link Library To Cache (Junction)
         shell: pwsh
         run: |
-          $repoLibrary = Join-Path $env:REPO_DIR "Library"
-          if (-not (Test-Path $env:LIB_CACHE_DIR)) { New-Item -ItemType Directory -Path $env:LIB_CACHE_DIR -Force | Out-Null }
+          $repoDir = $env:REPO_DIR.Trim()
+          $cacheDir = $env:LIB_CACHE_DIR.Trim()
+          $repoLibrary = Join-Path $repoDir "Library"
+          if (-not (Test-Path -LiteralPath $cacheDir)) { New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null }
 
           $isJunction = $false
           $targetOk = $false
-          if (Test-Path $repoLibrary) {
-            $item = Get-Item $repoLibrary -Force
+          if (Test-Path -LiteralPath $repoLibrary) {
+            $item = Get-Item -LiteralPath $repoLibrary -Force
             if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
               $isJunction = $true
               $targetOk = $true
@@ -128,29 +130,36 @@ jobs:
           }
 
           if ($isJunction -and $targetOk) {
-            "Library already linked to cache: $env:LIB_CACHE_DIR" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+            "Library already linked to cache: $cacheDir" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
             return
           }
 
-          if (Test-Path $repoLibrary) {
+          if (Test-Path -LiteralPath $repoLibrary) {
             # Remove any existing folder/link aggressively (Unity sometimes leaves read-only files).
-            cmd /c "attrib -R -H -S \"$repoLibrary\" /S /D 2>nul & rmdir /s /q \"$repoLibrary\""
+            cmd /c "attrib -R -H -S `"$repoLibrary`" /S /D 2>nul & rmdir /s /q `"$repoLibrary`""
           }
 
-          cmd /c "mklink /J \"$repoLibrary\" \"$env:LIB_CACHE_DIR\"" | Out-Null
+          try {
+            New-Item -ItemType Junction -Path $repoLibrary -Target $cacheDir -ErrorAction Stop | Out-Null
+          } catch {
+            Write-Warning "New-Item junction failed: $($_.Exception.Message). Trying mklink fallback."
+            & cmd.exe /d /c "mklink /J `"$repoLibrary`" `"$cacheDir`"" | Out-Host
+          }
 
-          if (-not (Test-Path $repoLibrary)) {
+          if (-not (Test-Path -LiteralPath $repoLibrary)) {
+            Write-Host "repoLibrary=$repoLibrary"
+            Write-Host "cacheDir=$cacheDir"
             Write-Error "Failed to create Library junction."
             exit 1
           }
 
-          $item = Get-Item $repoLibrary -Force
+          $item = Get-Item -LiteralPath $repoLibrary -Force
           if (-not ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
             Write-Error "Library is not a junction/reparse point after mklink."
             exit 1
           }
 
-          "Library linked to cache via junction: $env:LIB_CACHE_DIR" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          "Library linked to cache via junction: $cacheDir" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
 
       - name: Build Android
         shell: pwsh
