@@ -73,41 +73,41 @@ namespace Game.Tests.PlayMode
         public IEnumerator NetworkFacade_Handshake_Rejects_TokenMissing()
         {
             yield return RunManualHelloDisconnectCase(
-                protocolVersion: NetworkProtocol.Version,
-                contentVersion: "0.1.0",
-                schemaVersion: 1,
-                clientBuildVersion: BuildInfo.BuildVersion,
-                joinToken: string.Empty);
+                NetworkProtocol.Version,
+                "0.1.0",
+                1,
+                BuildInfo.BuildVersion,
+                string.Empty);
         }
 
         [UnityTest]
         public IEnumerator NetworkFacade_Handshake_Rejects_TokenReplay()
         {
-            const string secret = "__test_secret__";
+            const string keyMaterial = "__test_signing_key__";
             const string matchId = "m_local";
-            var token = CreateJoinToken(secret, matchId, "p_replay");
+            var signedProof = CreateJoinToken(keyMaterial, matchId, "p_replay");
 
             // First handshake with fresh token should succeed.
             yield return RunManualHelloWithOutcome(
-                protocolVersion: NetworkProtocol.Version,
-                contentVersion: "0.1.0",
-                schemaVersion: 1,
-                clientBuildVersion: BuildInfo.BuildVersion,
-                joinToken: token,
-                allowEmptyJoinToken: false,
-                matchmakerSecret: secret,
-                expectWelcome: true);
+                NetworkProtocol.Version,
+                "0.1.0",
+                1,
+                BuildInfo.BuildVersion,
+                signedProof,
+                false,
+                keyMaterial,
+                true);
 
             // Reusing the same token should be rejected.
             yield return RunManualHelloWithOutcome(
-                protocolVersion: NetworkProtocol.Version,
-                contentVersion: "0.1.0",
-                schemaVersion: 1,
-                clientBuildVersion: BuildInfo.BuildVersion,
-                joinToken: token,
-                allowEmptyJoinToken: false,
-                matchmakerSecret: secret,
-                expectWelcome: false);
+                NetworkProtocol.Version,
+                "0.1.0",
+                1,
+                BuildInfo.BuildVersion,
+                signedProof,
+                false,
+                keyMaterial,
+                false);
         }
 
         [UnityTest]
@@ -266,17 +266,17 @@ namespace Game.Tests.PlayMode
             string contentVersion,
             int schemaVersion,
             string clientBuildVersion,
-            string joinToken)
+            string joinPayload)
         {
             yield return RunManualHelloWithOutcome(
                 protocolVersion,
                 contentVersion,
                 schemaVersion,
                 clientBuildVersion,
-                joinToken,
-                allowEmptyJoinToken: false,
-                matchmakerSecret: "__token_missing_secret__",
-                expectWelcome: false);
+                joinPayload,
+                false,
+                "__token_missing_key__",
+                false);
         }
 
         private static IEnumerator RunManualHelloWithOutcome(
@@ -295,7 +295,7 @@ namespace Game.Tests.PlayMode
             var facade = facadeObject.AddComponent<MirrorNetworkFacade>();
             var server = serverObject.AddComponent<ServerNetworkBootstrap>();
 
-            var priorSecret = Environment.GetEnvironmentVariable("MATCHMAKER_SECRET");
+            var priorKey = Environment.GetEnvironmentVariable("MATCHMAKER_SECRET");
             Environment.SetEnvironmentVariable("MATCHMAKER_SECRET", null);
 
             try
@@ -348,7 +348,7 @@ namespace Game.Tests.PlayMode
             }
             finally
             {
-                Environment.SetEnvironmentVariable("MATCHMAKER_SECRET", priorSecret);
+                Environment.SetEnvironmentVariable("MATCHMAKER_SECRET", priorKey);
                 facade?.Client?.StopClient();
                 server?.StopServer();
                 UnityEngine.Object.Destroy(serverObject);
