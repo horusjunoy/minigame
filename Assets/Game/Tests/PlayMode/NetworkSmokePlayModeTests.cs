@@ -134,6 +134,46 @@ namespace Game.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator NetworkFacade_Handshake_Rejects_TokenMatchMismatch()
+        {
+            const string keyMaterial = "__test_signing_key__";
+            var signedProof = CreateJoinToken(
+                keyMaterial,
+                "m_other_match",
+                "p_mismatch");
+
+            yield return RunManualHelloWithOutcome(
+                NetworkProtocol.Version,
+                "0.1.0",
+                1,
+                BuildInfo.BuildVersion,
+                signedProof,
+                false,
+                keyMaterial,
+                false);
+        }
+
+        [UnityTest]
+        public IEnumerator NetworkFacade_Handshake_Rejects_TokenPayloadMissingMatchId()
+        {
+            const string keyMaterial = "__test_signing_key__";
+            var signedProof = CreateJoinToken(
+                keyMaterial,
+                string.Empty,
+                "p_payload");
+
+            yield return RunManualHelloWithOutcome(
+                NetworkProtocol.Version,
+                "0.1.0",
+                1,
+                BuildInfo.BuildVersion,
+                signedProof,
+                false,
+                keyMaterial,
+                false);
+        }
+
+        [UnityTest]
         public IEnumerator NetworkFacade_Handshake_Completes()
         {
             NetworkSmokeProbe.ResetResult();
