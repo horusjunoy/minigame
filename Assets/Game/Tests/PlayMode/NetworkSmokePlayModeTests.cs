@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Reflection;
 using Game.Client;
+using Game.Core;
 using Game.Network;
 using Game.Network.Transport.Mirror;
 using Game.Server;
@@ -41,6 +42,29 @@ namespace Game.Tests.PlayMode
                 "__invalid_content__",
                 1,
                 "content_mismatch");
+        }
+
+        [UnityTest]
+        public IEnumerator NetworkFacade_Handshake_Rejects_BuildMismatch()
+        {
+            yield return RunManualHelloRejectionCase(
+                protocolVersion: NetworkProtocol.Version,
+                contentVersion: "0.1.0",
+                schemaVersion: 1,
+                clientBuildVersion: "__invalid_build__",
+                expectedCode: "build_mismatch");
+        }
+
+        [UnityTest]
+        public IEnumerator NetworkFacade_Handshake_Rejects_ManifestMissing()
+        {
+            yield return RunManualHelloRejectionCase(
+                protocolVersion: NetworkProtocol.Version,
+                contentVersion: "0.1.0",
+                schemaVersion: 1,
+                clientBuildVersion: BuildInfo.BuildVersion,
+                expectedCode: "manifest_missing",
+                serverMinigameId: "__missing_manifest__");
         }
 
         [UnityTest]
@@ -117,6 +141,78 @@ namespace Game.Tests.PlayMode
             finally
             {
                 UnityEngine.Object.Destroy(clientObject);
+                UnityEngine.Object.Destroy(serverObject);
+                UnityEngine.Object.Destroy(facadeObject);
+            }
+        }
+
+        private static IEnumerator RunManualHelloRejectionCase(
+            int protocolVersion,
+            string contentVersion,
+            int schemaVersion,
+            string clientBuildVersion,
+            string expectedCode,
+            string serverMinigameId = null)
+        {
+            var facadeObject = new GameObject("NetworkFacade");
+            var serverObject = new GameObject("ServerNetwork");
+
+            var facade = facadeObject.AddComponent<MirrorNetworkFacade>();
+            var server = serverObject.AddComponent<ServerNetworkBootstrap>();
+
+            try
+            {
+                SetPrivateField(server, "facadeBehaviour", facade);
+                SetPrivateField(server, "allowEmptyJoinToken", true);
+                if (!string.IsNullOrWhiteSpace(serverMinigameId))
+                {
+                    SetPrivateField(server, "minigameId", serverMinigameId);
+                }
+
+                ServerErrorMessage? serverError = null;
+                var welcomeReceived = false;
+                var connected = false;
+                var sentHello = false;
+
+                facade.Client.ErrorReceived += message => serverError = message;
+                facade.Client.WelcomeReceived += _ => welcomeReceived = true;
+                facade.Client.Connected += () => connected = true;
+
+                facade.Client.StartClient(new NetworkEndpoint("127.0.0.1", 7770));
+
+                const float timeoutSeconds = 10f;
+                var start = Time.realtimeSinceStartup;
+                while (!connected && Time.realtimeSinceStartup - start < timeoutSeconds)
+                {
+                    yield return null;
+                }
+
+                Assert.IsTrue(connected, "Client did not connect.");
+
+                var hello = new HelloMessage(
+                    Guid.NewGuid().ToString("N"),
+                    clientBuildVersion,
+                    protocolVersion,
+                    contentVersion,
+                    schemaVersion,
+                    string.Empty);
+                facade.Client.SendHello(hello);
+                sentHello = true;
+
+                while (!serverError.HasValue && Time.realtimeSinceStartup - start < timeoutSeconds)
+                {
+                    yield return null;
+                }
+
+                Assert.IsTrue(sentHello, "Hello should be sent in manual handshake case.");
+                Assert.IsTrue(serverError.HasValue, $"Expected server error '{expectedCode}' but no error was received.");
+                Assert.AreEqual(expectedCode, serverError.Value.code);
+                Assert.IsFalse(welcomeReceived, "Welcome should not be received for rejected handshake.");
+            }
+            finally
+            {
+                facade?.Client?.StopClient();
+                server?.StopServer();
                 UnityEngine.Object.Destroy(serverObject);
                 UnityEngine.Object.Destroy(facadeObject);
             }
