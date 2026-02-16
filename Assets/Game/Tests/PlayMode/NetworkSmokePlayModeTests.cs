@@ -14,6 +14,36 @@ namespace Game.Tests.PlayMode
     public sealed class NetworkSmokePlayModeTests
     {
         [UnityTest]
+        public IEnumerator NetworkFacade_Handshake_Rejects_ProtocolMismatch()
+        {
+            yield return RunHandshakeRejectionCase(
+                NetworkProtocol.Version + 1,
+                "0.1.0",
+                1,
+                "protocol_mismatch");
+        }
+
+        [UnityTest]
+        public IEnumerator NetworkFacade_Handshake_Rejects_SchemaMismatch()
+        {
+            yield return RunHandshakeRejectionCase(
+                NetworkProtocol.Version,
+                "0.1.0",
+                2,
+                "schema_mismatch");
+        }
+
+        [UnityTest]
+        public IEnumerator NetworkFacade_Handshake_Rejects_ContentMismatch()
+        {
+            yield return RunHandshakeRejectionCase(
+                NetworkProtocol.Version,
+                "__invalid_content__",
+                1,
+                "content_mismatch");
+        }
+
+        [UnityTest]
         public IEnumerator NetworkFacade_Handshake_Completes()
         {
             NetworkSmokeProbe.ResetResult();
@@ -49,6 +79,47 @@ namespace Game.Tests.PlayMode
             UnityEngine.Object.Destroy(clientObject);
             UnityEngine.Object.Destroy(serverObject);
             UnityEngine.Object.Destroy(facadeObject);
+        }
+
+        private static IEnumerator RunHandshakeRejectionCase(int protocolVersion, string contentVersion, int schemaVersion, string expectedCode)
+        {
+            var facadeObject = new GameObject("NetworkFacade");
+            var serverObject = new GameObject("ServerNetwork");
+            var clientObject = new GameObject("ClientNetwork");
+
+            var facade = facadeObject.AddComponent<MirrorNetworkFacade>();
+            var server = serverObject.AddComponent<ServerNetworkBootstrap>();
+            var client = clientObject.AddComponent<ClientNetworkBootstrap>();
+
+            try
+            {
+                SetPrivateField(server, "facadeBehaviour", facade);
+                SetPrivateField(client, "facadeBehaviour", facade);
+                SetPrivateField(server, "allowEmptyJoinToken", true);
+                client.SetVersionInfo(protocolVersion, contentVersion, schemaVersion);
+
+                ServerErrorMessage? serverError = null;
+                var welcomeReceived = false;
+                client.ErrorReceived += message => serverError = message;
+                client.WelcomeReceived += _ => welcomeReceived = true;
+
+                const float timeoutSeconds = 10f;
+                var start = Time.realtimeSinceStartup;
+                while (!serverError.HasValue && Time.realtimeSinceStartup - start < timeoutSeconds)
+                {
+                    yield return null;
+                }
+
+                Assert.IsTrue(serverError.HasValue, $"Expected server error '{expectedCode}' but no error was received.");
+                Assert.AreEqual(expectedCode, serverError.Value.code);
+                Assert.IsFalse(welcomeReceived, "Welcome should not be received for rejected handshake.");
+            }
+            finally
+            {
+                UnityEngine.Object.Destroy(clientObject);
+                UnityEngine.Object.Destroy(serverObject);
+                UnityEngine.Object.Destroy(facadeObject);
+            }
         }
 
         private static void SetPrivateField(object target, string fieldName, object value)
