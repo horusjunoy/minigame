@@ -73,7 +73,7 @@ namespace Game.Tests.Runtime
             Assert.NotNull(loadedManifest, "Manifest should load for conformance test.");
             Assert.NotNull(minigame, "Minigame runtime loader should create the minigame.");
 
-            var context = new StubMinigameContext(telemetry, logger, loadedManifest.settings);
+            var context = new StubMinigameContext(telemetry, logger, loadedManifest.settings, loadedManifest.permissions);
             context.AddPlayer(new PlayerRef(new PlayerId("p1")));
             context.AddPlayer(new PlayerRef(new PlayerId("p2")));
 

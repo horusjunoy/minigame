@@ -123,6 +123,21 @@ namespace Game.Editor
                 }
             }
 
+            if (manifest.permissions != null)
+            {
+                if (manifest.permissions.max_entities < 0 ||
+                    manifest.permissions.max_broadcasts_per_tick < 0 ||
+                    manifest.permissions.max_sends_per_tick < 0 ||
+                    manifest.permissions.max_event_name_len < 0 ||
+                    manifest.permissions.max_payload_len < 0 ||
+                    manifest.permissions.tick_budget_ms < 0 ||
+                    manifest.permissions.allocation_sample_rate < 0)
+                {
+                    error = "permissions_invalid";
+                    return false;
+                }
+            }
+
             return true;
         }
 

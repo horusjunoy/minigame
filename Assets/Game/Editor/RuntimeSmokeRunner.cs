@@ -12,9 +12,23 @@ namespace Game.Editor
     {
         public static void Run()
         {
+            RunInternal(mobile: false);
+        }
+
+        public static void RunMobile()
+        {
+            RunInternal(mobile: true);
+        }
+
+        private static void RunInternal(bool mobile)
+        {
             try
             {
                 ServerHealthEndpoint.StartForSmoke();
+                if (mobile)
+                {
+                    Debug.Log("mobile_smoke_start");
+                }
 
                 var manifestPath = Path.Combine(Application.dataPath, "Game/Minigames/Stub/StubMinigame.manifest.json");
                 var manifest = MinigameManifestLoader.LoadFromFile(manifestPath);
@@ -42,7 +56,7 @@ namespace Game.Editor
                     "server_smoke");
 
                 var logger = new JsonRuntimeLogger();
-                var context = new StubMinigameContext(telemetry, logger, manifest.settings);
+                var context = new StubMinigameContext(telemetry, logger, manifest.settings, manifest.permissions);
                 context.AddPlayer(new PlayerRef(new PlayerId("p1")));
                 context.AddPlayer(new PlayerRef(new PlayerId("p2")));
 
@@ -52,11 +66,24 @@ namespace Game.Editor
                 var runner = new MinigameRunner(minigame, context);
 
                 runner.Load();
+                if (mobile)
+                {
+                    Debug.Log("mobile_smoke_enter_match");
+                }
                 runner.Start();
                 runner.Tick(0.016f);
                 runner.Tick(0.016f);
                 runner.End(new GameResult(EndGameReason.Completed));
+                if (mobile)
+                {
+                    Debug.Log("mobile_smoke_results");
+                }
                 contentLoader.UnloadAll();
+                if (mobile)
+                {
+                    Debug.Log("mobile_smoke_hub");
+                    Debug.Log("mobile_smoke_ok");
+                }
 
                 Debug.Log("Smoke: runtime completed.");
                 Thread.Sleep(1500);

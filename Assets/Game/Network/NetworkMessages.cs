@@ -4,15 +4,28 @@ namespace Game.Network
     {
         public const int Version = 1;
         public int v;
+        public int protocol_version;
         public string session_id;
         public string client_version;
+        public string content_version;
+        public int schema_version;
         public string join_token;
 
-        public HelloMessage(string sessionId, string clientVersion = "", string joinToken = "", int version = Version)
+        public HelloMessage(
+            string sessionId,
+            string clientVersion = "",
+            int protocolVersion = 0,
+            string contentVersion = "",
+            int schemaVersion = 0,
+            string joinToken = "",
+            int version = Version)
         {
             v = version;
             session_id = sessionId ?? string.Empty;
             client_version = clientVersion ?? string.Empty;
+            protocol_version = protocolVersion;
+            content_version = contentVersion ?? string.Empty;
+            schema_version = schemaVersion;
             join_token = joinToken ?? string.Empty;
         }
     }
@@ -44,6 +57,12 @@ namespace Game.Network
         public string client_build_version;
         public int server_protocol_version;
         public int client_protocol_version;
+        public string client_content_version;
+        public int client_schema_version;
+        public string accepted_build_versions;
+        public string accepted_content_versions;
+        public string accepted_schema_versions;
+        public string accepted_protocol_versions;
 
         public ServerErrorMessage(
             string code,
@@ -52,6 +71,12 @@ namespace Game.Network
             string clientBuildVersion,
             int serverProtocolVersion,
             int clientProtocolVersion,
+            string clientContentVersion = "",
+            int clientSchemaVersion = 0,
+            string acceptedBuildVersions = "",
+            string acceptedContentVersions = "",
+            string acceptedSchemaVersions = "",
+            string acceptedProtocolVersions = "",
             int version = Version)
         {
             v = version;
@@ -61,6 +86,12 @@ namespace Game.Network
             client_build_version = clientBuildVersion ?? string.Empty;
             server_protocol_version = serverProtocolVersion;
             client_protocol_version = clientProtocolVersion;
+            client_content_version = clientContentVersion ?? string.Empty;
+            client_schema_version = clientSchemaVersion;
+            accepted_build_versions = acceptedBuildVersions ?? string.Empty;
+            accepted_content_versions = acceptedContentVersions ?? string.Empty;
+            accepted_schema_versions = acceptedSchemaVersions ?? string.Empty;
+            accepted_protocol_versions = acceptedProtocolVersions ?? string.Empty;
         }
     }
 
