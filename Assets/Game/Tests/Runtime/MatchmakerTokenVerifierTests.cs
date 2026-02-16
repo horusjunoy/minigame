@@ -25,14 +25,14 @@ namespace Game.Tests.Runtime
         public void TryValidate_Rejects_InvalidSignature()
         {
             var verifier = new MatchmakerTokenVerifier("secret");
-            var token = CreateSignedToken(
-                secret: "other-secret",
+            var signedProof = CreateSignedToken(
+                keyMaterial: "other-secret",
                 matchId: "m_local",
                 playerId: "p_1",
                 nbfMs: DateTimeOffset.UtcNow.AddMinutes(-1).ToUnixTimeMilliseconds(),
                 expMs: DateTimeOffset.UtcNow.AddMinutes(1).ToUnixTimeMilliseconds());
 
-            var ok = verifier.TryValidate(token, out var payload, out var reason);
+            var ok = verifier.TryValidate(signedProof, out var payload, out var reason);
 
             Assert.IsFalse(ok);
             Assert.IsNull(payload);
@@ -43,14 +43,14 @@ namespace Game.Tests.Runtime
         public void TryValidate_Rejects_ExpiredToken()
         {
             var verifier = new MatchmakerTokenVerifier("secret");
-            var token = CreateSignedToken(
-                secret: "secret",
+            var signedProof = CreateSignedToken(
+                keyMaterial: "secret",
                 matchId: "m_local",
                 playerId: "p_1",
                 nbfMs: DateTimeOffset.UtcNow.AddMinutes(-5).ToUnixTimeMilliseconds(),
                 expMs: DateTimeOffset.UtcNow.AddMinutes(-1).ToUnixTimeMilliseconds());
 
-            var ok = verifier.TryValidate(token, out var payload, out var reason);
+            var ok = verifier.TryValidate(signedProof, out var payload, out var reason);
 
             Assert.IsFalse(ok);
             Assert.IsNull(payload);
@@ -61,14 +61,14 @@ namespace Game.Tests.Runtime
         public void TryValidate_Rejects_NotYetValidToken()
         {
             var verifier = new MatchmakerTokenVerifier("secret");
-            var token = CreateSignedToken(
-                secret: "secret",
+            var signedProof = CreateSignedToken(
+                keyMaterial: "secret",
                 matchId: "m_local",
                 playerId: "p_1",
                 nbfMs: DateTimeOffset.UtcNow.AddMinutes(1).ToUnixTimeMilliseconds(),
                 expMs: DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeMilliseconds());
 
-            var ok = verifier.TryValidate(token, out var payload, out var reason);
+            var ok = verifier.TryValidate(signedProof, out var payload, out var reason);
 
             Assert.IsFalse(ok);
             Assert.IsNull(payload);
@@ -79,14 +79,14 @@ namespace Game.Tests.Runtime
         public void TryValidate_Accepts_ValidToken()
         {
             var verifier = new MatchmakerTokenVerifier("secret");
-            var token = CreateSignedToken(
-                secret: "secret",
+            var signedProof = CreateSignedToken(
+                keyMaterial: "secret",
                 matchId: "m_local",
                 playerId: "p_1",
                 nbfMs: DateTimeOffset.UtcNow.AddMinutes(-1).ToUnixTimeMilliseconds(),
                 expMs: DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeMilliseconds());
 
-            var ok = verifier.TryValidate(token, out var payload, out var reason);
+            var ok = verifier.TryValidate(signedProof, out var payload, out var reason);
 
             Assert.IsTrue(ok);
             Assert.NotNull(payload);
@@ -95,7 +95,7 @@ namespace Game.Tests.Runtime
             Assert.IsNull(reason);
         }
 
-        private static string CreateSignedToken(string secret, string matchId, string playerId, long nbfMs, long expMs)
+        private static string CreateSignedToken(string keyMaterial, string matchId, string playerId, long nbfMs, long expMs)
         {
             var payloadJson = JsonUtility.ToJson(new MatchmakerTokenVerifier.TokenPayload
             {
@@ -108,7 +108,7 @@ namespace Game.Tests.Runtime
             var payloadBytes = Encoding.UTF8.GetBytes(payloadJson);
             var encodedPayload = Base64UrlEncode(payloadBytes);
 
-            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret ?? string.Empty));
+            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(keyMaterial ?? string.Empty));
             var signatureBytes = hmac.ComputeHash(payloadBytes);
             var encodedSignature = Base64UrlEncode(signatureBytes);
             return encodedPayload + "." + encodedSignature;
