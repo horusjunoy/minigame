@@ -111,6 +111,29 @@ namespace Game.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator NetworkFacade_Handshake_Rejects_TokenNotYetValid()
+        {
+            const string keyMaterial = "__test_signing_key__";
+            const string matchId = "m_local";
+            var signedProof = CreateJoinToken(
+                keyMaterial,
+                matchId,
+                "p_future",
+                DateTimeOffset.UtcNow.AddMinutes(1).ToUnixTimeMilliseconds(),
+                DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeMilliseconds());
+
+            yield return RunManualHelloWithOutcome(
+                NetworkProtocol.Version,
+                "0.1.0",
+                1,
+                BuildInfo.BuildVersion,
+                signedProof,
+                false,
+                keyMaterial,
+                false);
+        }
+
+        [UnityTest]
         public IEnumerator NetworkFacade_Handshake_Completes()
         {
             NetworkSmokeProbe.ResetResult();
@@ -356,13 +379,15 @@ namespace Game.Tests.PlayMode
             }
         }
 
-        private static string CreateJoinToken(string secret, string matchId, string playerId)
+        private static string CreateJoinToken(string secret, string matchId, string playerId, long? nbfMs = null, long? expMs = null)
         {
+            var now = DateTimeOffset.UtcNow;
             var payload = JsonUtility.ToJson(new MatchmakerTokenVerifier.TokenPayload
             {
                 match_id = matchId,
                 player_id = playerId,
-                exp = DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeMilliseconds()
+                nbf = nbfMs ?? now.AddMinutes(-1).ToUnixTimeMilliseconds(),
+                exp = expMs ?? now.AddMinutes(5).ToUnixTimeMilliseconds()
             });
 
             var payloadBytes = Encoding.UTF8.GetBytes(payload);
