@@ -83,23 +83,7 @@ jobs:
             exit 0
           fi
 
-          BLOCKED="$(echo "$ALL_CHANGED" | awk '
-            {
-              status=$1
-              path=$2
-              if (
-                (
-                  path ~ /^tickets\// ||
-                  path ~ /^codex_.*\.md$/ ||
-                  path ~ /^services\/matchmaker\/README\.md$/ ||
-                  (path ~ /\.md$/ && path != "README.md")
-                ) &&
-                status != "D"
-              ) {
-                print $0
-              }
-            }'
-          )"
+          BLOCKED="$(echo "$ALL_CHANGED" | awk '{status=$1; path=$2; if ((path ~ /^tickets\// || path ~ /^codex_.*\.md$/ || path ~ /^services\/matchmaker\/README\.md$/ || (path ~ /\.md$/ && path != "README.md")) && status != "D") print $0}')"
 
           if [ -n "$BLOCKED" ]; then
             echo "Documentation and internal process files are blocked from add/modify/rename in public repo:"
