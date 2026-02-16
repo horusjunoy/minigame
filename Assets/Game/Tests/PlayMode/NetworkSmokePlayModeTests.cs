@@ -98,20 +98,20 @@ namespace Game.Tests.PlayMode
                 SetPrivateField(server, "allowEmptyJoinToken", true);
                 client.SetVersionInfo(protocolVersion, contentVersion, schemaVersion);
 
-                ServerErrorMessage serverError = null;
+                ServerErrorMessage? serverError = null;
                 var welcomeReceived = false;
                 client.ErrorReceived += message => serverError = message;
                 client.WelcomeReceived += _ => welcomeReceived = true;
 
                 const float timeoutSeconds = 10f;
                 var start = Time.realtimeSinceStartup;
-                while (serverError == null && Time.realtimeSinceStartup - start < timeoutSeconds)
+                while (!serverError.HasValue && Time.realtimeSinceStartup - start < timeoutSeconds)
                 {
                     yield return null;
                 }
 
-                Assert.NotNull(serverError, $"Expected server error '{expectedCode}' but no error was received.");
-                Assert.AreEqual(expectedCode, serverError.code);
+                Assert.IsTrue(serverError.HasValue, $"Expected server error '{expectedCode}' but no error was received.");
+                Assert.AreEqual(expectedCode, serverError.Value.code);
                 Assert.IsFalse(welcomeReceived, "Welcome should not be received for rejected handshake.");
             }
             finally
