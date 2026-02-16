@@ -134,16 +134,28 @@ function signToken(payload) {
 }
 
 function verifyToken(token) {
-  if (!token || typeof token !== "string") return null;
-  const [encoded, signature] = token.split(".");
-  if (!encoded || !signature) return null;
-  const body = base64UrlDecode(encoded);
-  const expected = crypto.createHmac("sha256", secret).update(body).digest("base64url");
-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
-  const payload = JSON.parse(body);
-  if (payload.nbf && Date.now() < payload.nbf) return null;
-  if (payload.exp && Date.now() > payload.exp) return null;
-  return payload;
+  try {
+    if (!token || typeof token !== "string") return null;
+    const [encoded, signature] = token.split(".");
+    if (!encoded || !signature) return null;
+
+    const body = base64UrlDecode(encoded);
+    if (!body) return null;
+
+    const expected = crypto.createHmac("sha256", secret).update(body).digest("base64url");
+    const providedBytes = Buffer.from(signature);
+    const expectedBytes = Buffer.from(expected);
+    if (providedBytes.length !== expectedBytes.length) return null;
+    if (!crypto.timingSafeEqual(providedBytes, expectedBytes)) return null;
+
+    const payload = JSON.parse(body);
+    if (!payload || typeof payload !== "object") return null;
+    if (payload.nbf && Date.now() < payload.nbf) return null;
+    if (payload.exp && Date.now() > payload.exp) return null;
+    return payload;
+  } catch {
+    return null;
+  }
 }
 
 function getRemoteConfig() {
