@@ -9,6 +9,9 @@ on:
       - synchronize
       - reopened
       - ready_for_review
+  push:
+    branches:
+      - master
 
 permissions:
   contents: read
@@ -26,8 +29,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+          fi
+
+          if [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            BASE_SHA="$(git rev-parse "${HEAD_SHA}^")"
+          fi
+
           CHANGED="$(git diff --name-status "$BASE_SHA" "$HEAD_SHA" -- docs/ || true)"
 
           if [ -z "$CHANGED" ]; then
@@ -51,8 +64,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+          fi
+
+          if [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            BASE_SHA="$(git rev-parse "${HEAD_SHA}^")"
+          fi
+
           ALL_CHANGED="$(git diff --name-status "$BASE_SHA" "$HEAD_SHA" || true)"
 
           if [ -z "$ALL_CHANGED" ]; then
@@ -64,14 +87,22 @@ jobs:
             {
               status=$1
               path=$2
-              if ((path ~ /^tickets\// || path ~ /^codex_.*\.md$/ || path == "services/matchmaker/README.md") && status != "D") {
+              if (
+                (
+                  path ~ /^tickets\// ||
+                  path ~ /^codex_.*\.md$/ ||
+                  path ~ /^services\/matchmaker\/README\.md$/ ||
+                  (path ~ /\.md$/ && path != "README.md")
+                ) &&
+                status != "D"
+              ) {
                 print $0
               }
             }'
           )"
 
           if [ -n "$BLOCKED" ]; then
-            echo "Internal process files are blocked from add/modify/rename in public repo:"
+            echo "Documentation and internal process files are blocked from add/modify/rename in public repo:"
             echo "$BLOCKED"
             exit 1
           fi
