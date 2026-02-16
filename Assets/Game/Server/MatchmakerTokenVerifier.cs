@@ -54,6 +54,12 @@ namespace Game.Server
             }
 
             var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            if (parsed.nbf > 0 && nowMs < parsed.nbf)
+            {
+                reason = "token_not_yet_valid";
+                return false;
+            }
+
             if (parsed.exp > 0 && nowMs > parsed.exp)
             {
                 reason = "token_expired";
@@ -132,6 +138,7 @@ namespace Game.Server
         {
             public string match_id;
             public string player_id;
+            public long nbf;
             public long exp;
         }
     }

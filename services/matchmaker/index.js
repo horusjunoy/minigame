@@ -141,6 +141,7 @@ function verifyToken(token) {
   const expected = crypto.createHmac("sha256", secret).update(body).digest("base64url");
   if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
   const payload = JSON.parse(body);
+  if (payload.nbf && Date.now() < payload.nbf) return null;
   if (payload.exp && Date.now() > payload.exp) return null;
   return payload;
 }
@@ -340,6 +341,7 @@ const server = http.createServer(async (req, res) => {
       const hostToken = signToken({
         match_id: match.match_id,
         player_id: "host",
+        nbf: Date.now() - 1000,
         exp: Date.now() + tokenTtlSeconds * 1000,
       });
       log("match_created", { match_id: match.match_id, minigame_id: match.minigame_id });
@@ -382,6 +384,7 @@ const server = http.createServer(async (req, res) => {
       const joinToken = signToken({
         match_id: match.match_id,
         player_id: playerId,
+        nbf: Date.now() - 1000,
         exp: Date.now() + tokenTtlSeconds * 1000,
       });
       log("match_join", { match_id: match.match_id, player_id: playerId });
