@@ -14,6 +14,7 @@ namespace Game.Runtime
         public string client_entry;
         public AddressablesConfig addressables;
         public Settings settings;
+        public MinigamePermissions permissions;
     }
 
     [Serializable]
@@ -28,5 +29,17 @@ namespace Game.Runtime
     {
         public int match_duration_s;
         public int score_to_win;
+    }
+
+    [Serializable]
+    public sealed class MinigamePermissions
+    {
+        public int max_entities = 128;
+        public int max_broadcasts_per_tick = 16;
+        public int max_sends_per_tick = 32;
+        public int max_event_name_len = 64;
+        public int max_payload_len = 512;
+        public double tick_budget_ms = 33.0;
+        public int allocation_sample_rate = 60;
     }
 }

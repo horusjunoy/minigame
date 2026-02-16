@@ -13,6 +13,9 @@ namespace Game.Client
         [SerializeField] private ushort serverPort = 7770;
         [SerializeField] private string sessionId = "";
         [SerializeField] private string joinToken = "";
+        [SerializeField] private int protocolVersion = NetworkProtocol.Version;
+        [SerializeField] private string contentVersion = "";
+        [SerializeField] private int schemaVersion = 1;
         [SerializeField] private bool autoStart = true;
         [SerializeField] private bool autoSendMoveCommands = true;
         [SerializeField] private float moveCommandRate = 10f;
@@ -81,6 +84,13 @@ namespace Game.Client
         public void SetJoinToken(string value)
         {
             joinToken = value ?? string.Empty;
+        }
+
+        public void SetVersionInfo(int protocol, string content, int schema)
+        {
+            protocolVersion = protocol;
+            contentVersion = content ?? string.Empty;
+            schemaVersion = schema;
         }
 
         public void ConfigureEndpoint(string address, ushort port)
@@ -162,7 +172,13 @@ namespace Game.Client
                 sessionId = Guid.NewGuid().ToString("N");
             }
 
-            var hello = new HelloMessage(sessionId, BuildInfo.BuildVersion, joinToken);
+            var hello = new HelloMessage(
+                sessionId,
+                BuildInfo.BuildVersion,
+                protocolVersion,
+                contentVersion,
+                schemaVersion,
+                joinToken);
             _client.SendHello(hello);
 
             var telemetry = new TelemetryContext(
@@ -173,7 +189,13 @@ namespace Game.Client
                 BuildInfo.BuildVersion,
                 "client_local");
 
-            _logger.Log(LogLevel.Info, "client_connected", "Client connected", null, telemetry);
+            var fields = new System.Collections.Generic.Dictionary<string, object>
+            {
+                ["client_protocol_version"] = protocolVersion,
+                ["client_content_version"] = contentVersion,
+                ["client_schema_version"] = schemaVersion
+            };
+            _logger.Log(LogLevel.Info, "client_connected", "Client connected", fields, telemetry);
             _disconnectReason = "transport_disconnect";
             _nextMoveCommandTime = Time.realtimeSinceStartup;
             Connected?.Invoke();
@@ -235,7 +257,13 @@ namespace Game.Client
                 ["server_build_version"] = message.server_build_version,
                 ["client_build_version"] = message.client_build_version,
                 ["server_protocol_version"] = message.server_protocol_version,
-                ["client_protocol_version"] = message.client_protocol_version
+                ["client_protocol_version"] = message.client_protocol_version,
+                ["client_content_version"] = message.client_content_version,
+                ["client_schema_version"] = message.client_schema_version,
+                ["accepted_build_versions"] = message.accepted_build_versions,
+                ["accepted_content_versions"] = message.accepted_content_versions,
+                ["accepted_schema_versions"] = message.accepted_schema_versions,
+                ["accepted_protocol_versions"] = message.accepted_protocol_versions
             };
             _logger.Log(LogLevel.Warn, "server_error", "Server error", fields, telemetry);
             ErrorReceived?.Invoke(message);

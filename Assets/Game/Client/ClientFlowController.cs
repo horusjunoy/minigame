@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using Game.Core;
 using Game.Network;
 using Game.Runtime;
@@ -60,6 +61,7 @@ namespace Game.Client
         private int _reconnectAttempts;
         private bool _pendingReconnect;
         private JsonRuntimeLogger _logger;
+        private bool _versionRetryAttempted;
         private string[] _remoteMinigamePool;
         private string[] _remoteBlockedMinigames;
         private string _remoteFallbackMinigame;
@@ -157,7 +159,10 @@ namespace Game.Client
         {
             var width = 420f;
             var height = 380f;
-            var rect = new Rect(16f, 16f, width, height);
+            var safe = Screen.safeArea;
+            var x = safe.x + 16f;
+            var y = safe.y + 16f;
+            var rect = new Rect(x, y, width, height);
             GUILayout.BeginArea(rect, GUI.skin.box);
             GUILayout.Label("Minigame Client");
             GUILayout.Space(8f);
@@ -289,6 +294,7 @@ namespace Game.Client
             _state = FlowState.CreatingMatch;
             _stateStartedAt = Time.realtimeSinceStartup;
             _matchmakingDeadline = Time.realtimeSinceStartup + matchmakingTimeoutSeconds;
+            _versionRetryAttempted = false;
             StartCoroutine(CreateMatchWithRetry());
         }
 
@@ -367,6 +373,7 @@ namespace Game.Client
             _stateStartedAt = Time.realtimeSinceStartup;
             networkBootstrap.ConfigureEndpoint(address, port);
             networkBootstrap.SetJoinToken(_joinToken);
+            ConfigureVersionInfo();
             networkBootstrap.StartClient();
         }
 
@@ -406,6 +413,13 @@ namespace Game.Client
 
         private void HandleNetworkError(ServerErrorMessage message)
         {
+            if (IsVersionMismatch(message.code) && !_versionRetryAttempted && matchmakerClient != null)
+            {
+                _versionRetryAttempted = true;
+                StartCoroutine(JoinMatchWithRetry());
+                return;
+            }
+
             _ignoreDisconnect = true;
             var detail = BuildNetworkErrorDetail(message);
             SetError(detail);
@@ -462,6 +476,7 @@ namespace Game.Client
             _reconnectDeadline = 0f;
             _pendingReconnect = false;
             _reconnecting = false;
+            _versionRetryAttempted = false;
             if (networkBootstrap != null)
             {
                 _ignoreDisconnect = true;
@@ -718,6 +733,14 @@ namespace Game.Client
             {
                 return "Versao do client incompatível. Atualize o client.";
             }
+            if (code.StartsWith("content_mismatch", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Conteudo incompatível. Atualize o client.";
+            }
+            if (code.StartsWith("schema_mismatch", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Manifesto incompatível. Atualize o client.";
+            }
 
             return code;
         }
@@ -748,6 +771,14 @@ namespace Game.Client
             {
                 return $"build_mismatch: server={message.server_build_version} client={message.client_build_version}";
             }
+            if (message.code.StartsWith("content_mismatch", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"content_mismatch: server={message.accepted_content_versions} client={message.client_content_version}";
+            }
+            if (message.code.StartsWith("schema_mismatch", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"schema_mismatch: server={message.accepted_schema_versions} client={message.client_schema_version}";
+            }
 
             if (!string.IsNullOrWhiteSpace(message.detail))
             {
@@ -755,6 +786,66 @@ namespace Game.Client
             }
 
             return message.code;
+        }
+
+        private static bool IsVersionMismatch(string code)
+        {
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                return false;
+            }
+
+            return code.StartsWith("protocol_mismatch", StringComparison.OrdinalIgnoreCase) ||
+                   code.StartsWith("build_mismatch", StringComparison.OrdinalIgnoreCase) ||
+                   code.StartsWith("content_mismatch", StringComparison.OrdinalIgnoreCase) ||
+                   code.StartsWith("schema_mismatch", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void ConfigureVersionInfo()
+        {
+            if (networkBootstrap == null)
+            {
+                return;
+            }
+
+            var contentVersion = string.Empty;
+            var schemaVersion = 1;
+            var rootPath = Path.Combine(Application.dataPath, "Game", "Minigames");
+            var catalog = MinigameCatalog.LoadFromDirectory(rootPath);
+            var manifest = catalog?.GetById(minigameId);
+            if (manifest != null)
+            {
+                contentVersion = manifest.content_version ?? string.Empty;
+                schemaVersion = manifest.schema_version;
+            }
+
+            var repoRoot = Directory.GetParent(Application.dataPath)?.FullName ?? string.Empty;
+            var indexPath = Environment.GetEnvironmentVariable("CONTENT_INDEX_PATH");
+            if (string.IsNullOrWhiteSpace(indexPath) && !string.IsNullOrWhiteSpace(repoRoot))
+            {
+                indexPath = Path.Combine(repoRoot, "artifacts", "content", "content_index.json");
+            }
+
+            if (!string.IsNullOrWhiteSpace(indexPath))
+            {
+                var telemetry = new TelemetryContext(
+                    new MatchId(_matchId ?? string.Empty),
+                    new MinigameId(minigameId ?? string.Empty),
+                    new PlayerId(_playerId ?? string.Empty),
+                    new SessionId(string.Empty),
+                    BuildInfo.BuildVersion,
+                    "client_local");
+
+                if (ContentDistribution.TryResolveContent(minigameId, indexPath, _logger, telemetry, out var entry, out _))
+                {
+                    if (entry != null && !string.IsNullOrWhiteSpace(entry.content_version))
+                    {
+                        contentVersion = entry.content_version;
+                    }
+                }
+            }
+
+            networkBootstrap.SetVersionInfo(NetworkProtocol.Version, contentVersion, schemaVersion);
         }
 
         private void LogPurchaseIntent(string sku, string source)

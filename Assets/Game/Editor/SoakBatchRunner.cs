@@ -45,7 +45,7 @@ namespace Game.Editor
                 var settings = manifest.settings ?? new Settings();
                 settings.match_duration_s = -Mathf.Max(1, durationSeconds);
                 settings.score_to_win = scoreToWin;
-                var context = new StubMinigameContext(telemetry, logger, settings);
+                var context = new StubMinigameContext(telemetry, logger, settings, manifest.permissions);
                 var runner = new MinigameRunner(minigame, context);
                 var tickRunner = new ServerMatchRunner(logger, telemetry);
 
@@ -90,7 +90,7 @@ namespace Game.Editor
                         var scaled = elapsed * Mathf.Max(0.01f, timeScale);
                         simulatedElapsed += scaled;
                         var tickStart = System.Diagnostics.Stopwatch.GetTimestamp();
-                        tickRunner.RunTick(minigame, scaled);
+                        tickRunner.RunTick(minigame, context, scaled);
                         var tickMs = (System.Diagnostics.Stopwatch.GetTimestamp() - tickStart) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
                         intervalTicks += 1;
                         intervalTickMs += tickMs;

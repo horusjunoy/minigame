@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Reflection;
 using Game.Core;
+using Game.Runtime;
 using UnityEngine;
 
 namespace Game.Network
@@ -102,13 +103,35 @@ namespace Game.Network
             }
 
             var sessionId = Guid.NewGuid().ToString("N");
-            var helloMessage = Activator.CreateInstance(helloType, sessionId, BuildInfo.BuildVersion, string.Empty, HelloMessage.Version);
+            var (contentVersion, schemaVersion) = ResolveStubContentVersion();
+            var helloMessage = Activator.CreateInstance(
+                helloType,
+                sessionId,
+                BuildInfo.BuildVersion,
+                NetworkProtocol.Version,
+                contentVersion,
+                schemaVersion,
+                string.Empty,
+                HelloMessage.Version);
             var sendHello = client.GetType().GetMethod("SendHello", BindingFlags.Instance | BindingFlags.Public);
             if (sendHello != null)
             {
                 Debug.Log("NetworkSmokeSequencer: sending hello");
                 sendHello.Invoke(client, new[] { helloMessage });
             }
+        }
+
+        private static (string contentVersion, int schemaVersion) ResolveStubContentVersion()
+        {
+            var rootPath = System.IO.Path.Combine(Application.dataPath, "Game", "Minigames");
+            var catalog = MinigameCatalog.LoadFromDirectory(rootPath);
+            var manifest = catalog?.GetById("stub_v1");
+            if (manifest == null)
+            {
+                return (string.Empty, 1);
+            }
+
+            return (manifest.content_version ?? string.Empty, manifest.schema_version);
         }
 
         private static void InvokeIfPresent(Type type, object target, string methodName)

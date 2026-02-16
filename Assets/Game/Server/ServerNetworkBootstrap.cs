@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using Game.Core;
 using Game.Network;
@@ -44,6 +45,9 @@ namespace Game.Server
         private bool _serverRunning;
         private readonly Dictionary<string, int> _playerIndex = new Dictionary<string, int>();
         private MatchmakerTokenVerifier _tokenVerifier;
+        private bool _manifestResolved;
+        private int _manifestSchemaVersion = 1;
+        private string _manifestContentVersion = string.Empty;
 
         private void Awake()
         {
@@ -151,16 +155,43 @@ namespace Game.Server
             var sessionId = SanitizePayload(message.session_id, 64, peerId, "session_id");
             var clientVersion = SanitizePayload(message.client_version, 32, peerId, "client_version");
             var joinToken = SanitizePayload(message.join_token, joinTokenMaxLength, peerId, "join_token");
+            var contentVersion = SanitizePayload(message.content_version, 64, peerId, "content_version");
+            message.client_version = clientVersion;
+            message.content_version = contentVersion;
+
+            if (!EnsureManifestResolved())
+            {
+                RejectHandshake(peerId, sessionId, "manifest_missing", "manifest_not_found", clientVersion, message);
+                return;
+            }
 
             if (message.v != HelloMessage.Version)
             {
-                RejectHandshake(peerId, sessionId, "protocol_mismatch", $"expected={HelloMessage.Version}, got={message.v}", clientVersion, message.v);
+                RejectHandshake(peerId, sessionId, "protocol_mismatch", $"expected={HelloMessage.Version}, got={message.v}", clientVersion, message);
+                return;
+            }
+
+            if (message.protocol_version != NetworkProtocol.Version)
+            {
+                RejectHandshake(peerId, sessionId, "protocol_mismatch", "client_protocol_mismatch", clientVersion, message);
                 return;
             }
 
             if (!string.Equals(clientVersion, BuildInfo.BuildVersion, StringComparison.Ordinal))
             {
-                RejectHandshake(peerId, sessionId, "build_mismatch", "client_build_mismatch", clientVersion, message.v);
+                RejectHandshake(peerId, sessionId, "build_mismatch", "client_build_mismatch", clientVersion, message);
+                return;
+            }
+
+            if (message.schema_version != _manifestSchemaVersion)
+            {
+                RejectHandshake(peerId, sessionId, "schema_mismatch", "client_schema_mismatch", clientVersion, message);
+                return;
+            }
+
+            if (!string.Equals(message.content_version ?? string.Empty, _manifestContentVersion ?? string.Empty, StringComparison.Ordinal))
+            {
+                RejectHandshake(peerId, sessionId, "content_mismatch", "client_content_mismatch", clientVersion, message);
                 return;
             }
 
@@ -189,6 +220,19 @@ namespace Game.Server
                 new SessionId(sessionId),
                 BuildInfo.BuildVersion,
                 serverInstanceId);
+
+            var handshakeFields = new System.Collections.Generic.Dictionary<string, object>
+            {
+                ["client_protocol_version"] = message.protocol_version,
+                ["server_protocol_version"] = NetworkProtocol.Version,
+                ["client_build_version"] = clientVersion,
+                ["server_build_version"] = BuildInfo.BuildVersion,
+                ["client_content_version"] = message.content_version,
+                ["server_content_version"] = _manifestContentVersion,
+                ["client_schema_version"] = message.schema_version,
+                ["server_schema_version"] = _manifestSchemaVersion
+            };
+            _logger.Log(LogLevel.Info, "handshake_ok", "Handshake validated", handshakeFields, telemetry);
 
             _logger.Log(LogLevel.Info, "player_joined", "Player joined", null, telemetry);
 
@@ -558,7 +602,7 @@ namespace Game.Server
             return true;
         }
 
-        private void RejectHandshake(NetworkPeerId peerId, string sessionId, string code, string detail, string clientBuildVersion, int clientProtocolVersion)
+        private void RejectHandshake(NetworkPeerId peerId, string sessionId, string code, string detail, string clientBuildVersion, HelloMessage message)
         {
             var telemetry = new TelemetryContext(
                 new MatchId(matchId),
@@ -574,8 +618,12 @@ namespace Game.Server
                 ["detail"] = detail,
                 ["server_build_version"] = BuildInfo.BuildVersion,
                 ["client_build_version"] = clientBuildVersion,
-                ["server_protocol_version"] = HelloMessage.Version,
-                ["client_protocol_version"] = clientProtocolVersion
+                ["server_protocol_version"] = NetworkProtocol.Version,
+                ["client_protocol_version"] = message.protocol_version,
+                ["server_content_version"] = _manifestContentVersion,
+                ["client_content_version"] = message.content_version,
+                ["server_schema_version"] = _manifestSchemaVersion,
+                ["client_schema_version"] = message.schema_version
             };
             _logger.Log(LogLevel.Warn, "handshake_rejected", "Handshake rejected", fields, telemetry);
 
@@ -584,9 +632,43 @@ namespace Game.Server
                 detail,
                 BuildInfo.BuildVersion,
                 clientBuildVersion,
-                HelloMessage.Version,
-                clientProtocolVersion));
+                NetworkProtocol.Version,
+                message.protocol_version,
+                message.content_version,
+                message.schema_version,
+                BuildInfo.BuildVersion,
+                _manifestContentVersion,
+                _manifestSchemaVersion.ToString(),
+                NetworkProtocol.Version.ToString()));
             _server.Disconnect(peerId, code);
+        }
+
+        private bool EnsureManifestResolved()
+        {
+            if (_manifestResolved)
+            {
+                return true;
+            }
+
+            var rootPath = Path.Combine(Application.dataPath, "Game", "Minigames");
+            if (!Directory.Exists(rootPath))
+            {
+                _logger.Log(LogLevel.Error, "manifest_missing", "Minigame catalog missing", $"root={rootPath}", null);
+                return false;
+            }
+
+            var catalog = MinigameCatalog.LoadFromDirectory(rootPath);
+            var manifest = catalog?.GetById(minigameId);
+            if (manifest == null)
+            {
+                _logger.Log(LogLevel.Error, "manifest_missing", "Minigame manifest missing", $"minigame_id={minigameId}", null);
+                return false;
+            }
+
+            _manifestSchemaVersion = manifest.schema_version;
+            _manifestContentVersion = manifest.content_version ?? string.Empty;
+            _manifestResolved = true;
+            return true;
         }
 
         private void RejectJoinToken(NetworkPeerId peerId, string sessionId, MatchmakerTokenVerifier.TokenPayload payload, string reason)

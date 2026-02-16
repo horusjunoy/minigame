@@ -23,4 +23,15 @@ namespace Game.Runtime
         void Broadcast(string eventName, object payload);
         void SendTo(PlayerRef player, string eventName, object payload);
     }
+
+    public interface ITickBoundContext
+    {
+        void BeginTick();
+    }
+
+    public interface IMinigameBudgetProvider
+    {
+        double TickBudgetMs { get; }
+        int AllocationSampleRate { get; }
+    }
 }

@@ -42,7 +42,7 @@ namespace Game.Server
             var contentLoader = new MinigameContentLoader(logger, telemetry);
             contentLoader.LoadAllBlocking(manifest);
 
-            var context = new StubMinigameContext(telemetry, logger, manifest.settings);
+            var context = new StubMinigameContext(telemetry, logger, manifest.settings, manifest.permissions);
             context.AddPlayer(new PlayerRef(new PlayerId("p1")));
             context.AddPlayer(new PlayerRef(new PlayerId("p2")));
 
@@ -54,7 +54,7 @@ namespace Game.Server
 
             for (var i = 0; i < warmupTicks; i++)
             {
-                tickRunner.RunTick(minigame, tickDelta);
+                tickRunner.RunTick(minigame, context, tickDelta);
             }
 
             runner.End(new GameResult(EndGameReason.Completed));

@@ -409,8 +409,11 @@ namespace Game.Network.Transport.Mirror
     internal struct HelloNetworkMessage : NetworkMessage
     {
         public int v;
+        public int protocol_version;
         public string session_id;
         public string client_version;
+        public string content_version;
+        public int schema_version;
         public string join_token;
 
         public HelloNetworkMessage(HelloMessage message)
@@ -418,10 +421,14 @@ namespace Game.Network.Transport.Mirror
             v = message.v;
             session_id = message.session_id;
             client_version = message.client_version;
+            protocol_version = message.protocol_version;
+            content_version = message.content_version;
+            schema_version = message.schema_version;
             join_token = message.join_token;
         }
 
-        public HelloMessage ToDto() => new HelloMessage(session_id, client_version, join_token, v);
+        public HelloMessage ToDto()
+            => new HelloMessage(session_id, client_version, protocol_version, content_version, schema_version, join_token, v);
     }
 
     internal struct WelcomeNetworkMessage : NetworkMessage
@@ -451,6 +458,12 @@ namespace Game.Network.Transport.Mirror
         public string client_build_version;
         public int server_protocol_version;
         public int client_protocol_version;
+        public string client_content_version;
+        public int client_schema_version;
+        public string accepted_build_versions;
+        public string accepted_content_versions;
+        public string accepted_schema_versions;
+        public string accepted_protocol_versions;
 
         public ServerErrorNetworkMessage(ServerErrorMessage message)
         {
@@ -461,10 +474,29 @@ namespace Game.Network.Transport.Mirror
             client_build_version = message.client_build_version;
             server_protocol_version = message.server_protocol_version;
             client_protocol_version = message.client_protocol_version;
+            client_content_version = message.client_content_version;
+            client_schema_version = message.client_schema_version;
+            accepted_build_versions = message.accepted_build_versions;
+            accepted_content_versions = message.accepted_content_versions;
+            accepted_schema_versions = message.accepted_schema_versions;
+            accepted_protocol_versions = message.accepted_protocol_versions;
         }
 
         public ServerErrorMessage ToDto()
-            => new ServerErrorMessage(code, detail, server_build_version, client_build_version, server_protocol_version, client_protocol_version, v);
+            => new ServerErrorMessage(
+                code,
+                detail,
+                server_build_version,
+                client_build_version,
+                server_protocol_version,
+                client_protocol_version,
+                client_content_version,
+                client_schema_version,
+                accepted_build_versions,
+                accepted_content_versions,
+                accepted_schema_versions,
+                accepted_protocol_versions,
+                v);
     }
 
     internal sealed class MirrorTransportAdapter : INetworkTransport
