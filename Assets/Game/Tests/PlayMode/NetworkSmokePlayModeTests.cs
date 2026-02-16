@@ -1,6 +1,8 @@
 using System;
 using System.Collections;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 using Game.Client;
 using Game.Core;
 using Game.Network;
@@ -65,6 +67,47 @@ namespace Game.Tests.PlayMode
                 clientBuildVersion: BuildInfo.BuildVersion,
                 expectedCode: "manifest_missing",
                 serverMinigameId: "__missing_manifest__");
+        }
+
+        [UnityTest]
+        public IEnumerator NetworkFacade_Handshake_Rejects_TokenMissing()
+        {
+            yield return RunManualHelloDisconnectCase(
+                NetworkProtocol.Version,
+                "0.1.0",
+                1,
+                BuildInfo.BuildVersion,
+                string.Empty);
+        }
+
+        [UnityTest]
+        public IEnumerator NetworkFacade_Handshake_Rejects_TokenReplay()
+        {
+            const string keyMaterial = "__test_signing_key__";
+            const string matchId = "m_local";
+            var signedProof = CreateJoinToken(keyMaterial, matchId, "p_replay");
+
+            // First handshake with fresh token should succeed.
+            yield return RunManualHelloWithOutcome(
+                NetworkProtocol.Version,
+                "0.1.0",
+                1,
+                BuildInfo.BuildVersion,
+                signedProof,
+                false,
+                keyMaterial,
+                true);
+
+            // Reusing the same token should be rejected.
+            yield return RunManualHelloWithOutcome(
+                NetworkProtocol.Version,
+                "0.1.0",
+                1,
+                BuildInfo.BuildVersion,
+                signedProof,
+                false,
+                keyMaterial,
+                false);
         }
 
         [UnityTest]
@@ -216,6 +259,127 @@ namespace Game.Tests.PlayMode
                 UnityEngine.Object.Destroy(serverObject);
                 UnityEngine.Object.Destroy(facadeObject);
             }
+        }
+
+        private static IEnumerator RunManualHelloDisconnectCase(
+            int protocolVersion,
+            string contentVersion,
+            int schemaVersion,
+            string clientBuildVersion,
+            string joinPayload)
+        {
+            yield return RunManualHelloWithOutcome(
+                protocolVersion,
+                contentVersion,
+                schemaVersion,
+                clientBuildVersion,
+                joinPayload,
+                false,
+                "__token_missing_key__",
+                false);
+        }
+
+        private static IEnumerator RunManualHelloWithOutcome(
+            int protocolVersion,
+            string contentVersion,
+            int schemaVersion,
+            string clientBuildVersion,
+            string joinToken,
+            bool allowEmptyJoinToken,
+            string matchmakerSecret,
+            bool expectWelcome)
+        {
+            var facadeObject = new GameObject("NetworkFacade");
+            var serverObject = new GameObject("ServerNetwork");
+
+            var facade = facadeObject.AddComponent<MirrorNetworkFacade>();
+            var server = serverObject.AddComponent<ServerNetworkBootstrap>();
+
+            var priorKey = Environment.GetEnvironmentVariable("MATCHMAKER_SECRET");
+            Environment.SetEnvironmentVariable("MATCHMAKER_SECRET", null);
+
+            try
+            {
+                SetPrivateField(server, "facadeBehaviour", facade);
+                SetPrivateField(server, "allowEmptyJoinToken", allowEmptyJoinToken);
+                SetPrivateField(server, "matchmakerSecret", matchmakerSecret);
+
+                var connected = false;
+                var disconnected = false;
+                var welcomeReceived = false;
+                facade.Client.Connected += () => connected = true;
+                facade.Client.Disconnected += () => disconnected = true;
+                facade.Client.WelcomeReceived += _ => welcomeReceived = true;
+
+                facade.Client.StartClient(new NetworkEndpoint("127.0.0.1", 7770));
+
+                const float timeoutSeconds = 10f;
+                var start = Time.realtimeSinceStartup;
+                while (!connected && Time.realtimeSinceStartup - start < timeoutSeconds)
+                {
+                    yield return null;
+                }
+
+                Assert.IsTrue(connected, "Client did not connect.");
+
+                var hello = new HelloMessage(
+                    Guid.NewGuid().ToString("N"),
+                    clientBuildVersion,
+                    protocolVersion,
+                    contentVersion,
+                    schemaVersion,
+                    joinToken ?? string.Empty);
+                facade.Client.SendHello(hello);
+
+                while (!disconnected && !welcomeReceived && Time.realtimeSinceStartup - start < timeoutSeconds)
+                {
+                    yield return null;
+                }
+
+                if (expectWelcome)
+                {
+                    Assert.IsTrue(welcomeReceived, "Welcome should be received.");
+                }
+                else
+                {
+                    Assert.IsFalse(welcomeReceived, "Welcome should not be received.");
+                    Assert.IsTrue(disconnected, "Client should disconnect when token is rejected.");
+                }
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("MATCHMAKER_SECRET", priorKey);
+                facade?.Client?.StopClient();
+                server?.StopServer();
+                UnityEngine.Object.Destroy(serverObject);
+                UnityEngine.Object.Destroy(facadeObject);
+            }
+        }
+
+        private static string CreateJoinToken(string secret, string matchId, string playerId)
+        {
+            var payload = JsonUtility.ToJson(new MatchmakerTokenVerifier.TokenPayload
+            {
+                match_id = matchId,
+                player_id = playerId,
+                exp = DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeMilliseconds()
+            });
+
+            var payloadBytes = Encoding.UTF8.GetBytes(payload);
+            var encodedPayload = Base64UrlEncode(payloadBytes);
+
+            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret ?? string.Empty));
+            var signatureBytes = hmac.ComputeHash(payloadBytes);
+            var encodedSignature = Base64UrlEncode(signatureBytes);
+            return encodedPayload + "." + encodedSignature;
+        }
+
+        private static string Base64UrlEncode(byte[] bytes)
+        {
+            return Convert.ToBase64String(bytes)
+                .TrimEnd('=')
+                .Replace('+', '-')
+                .Replace('/', '_');
         }
 
         private static void SetPrivateField(object target, string fieldName, object value)
